@@ -1,0 +1,49 @@
+max_life_time = 86400
+
+[filter]
+open = true
+begin_win_size = 10
+end_win_size = 6
+data_win_size = 10
+
+[stt]
+select = "ali"
+
+[stt.ali]
+url = "wss://nls-gateway.cn-shanghai.aliyuncs.com/ws/v1"
+akid = ""
+akkey = ""
+appkey = ""
+
+[tts]
+select = "ali"
+
+[tts.ali]
+url = "https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/tts"
+akid = ""
+akkey = ""
+appkey = ""
+
+[rtc]
+app_id = "857c6564e7db469387eb44205f287b9a"
+channel_name = "test_channel"
+user_id = "0"
+region = "glob"
+
+[log]
+file = "./demo.log"
+level = "debug"
+
+[llm]
+model_select = "qwen"
+with_history = true
+clause_mode = "none"
+
+[llm.prompt]
+output_language = ["zh-CN"]
+
+[llm.qwen]
+model = "qwen-plus"
+url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+apikey = ""
+dialog_nums = 10
