@@ -95,3 +95,8 @@ sid是指对一个sentence的唯一标识。如果对几个sentence划分到一�
 - 含义：因为一个sentence在llm返回的结果以多个segment的形式交给tts，所以tts会独立地、并发地处理这些segment，然后异步地将各个segment的返回的音频结果合并起来
 - 优点：降低了 多个segment在 语音合成时因为同步等待所带来的耗时
 - 注意：并发度够用就行，调高了会触发限流。经验值：2
+### http连接池、http预热连接
+含义：在pkg/httputil中初始化http.Client时有用到http.Transport来开启连接池功能。同时也有提前预热连接函数WarmUpConnectionPool
+使用：在llm、tts等用到http请求访问的场景都有用到
+意义：连接池可以降低 并发请求场景下 新建连接的概率。预热连接可以在项目初始化阶段就把本机与各个服务host的http长连接建立好，避免首次请求时建连引入耗时
+
