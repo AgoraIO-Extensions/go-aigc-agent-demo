@@ -75,7 +75,7 @@ sid是指对一个sentence的唯一标识。如果对几个sentence划分到一�
 如果，在接收到 sentence_i+1 的head chunk时，sentence_i的处理逻辑已经走到了往rtc发送回复音频阶段了，那么此时会触发「断句」，否则，会触发「并句」逻辑。
 - 断句：就是 sentence_i+1 到来时，立即打断 sentence_i 的处理逻辑，然后进入 sentence_i+1 的处理逻辑
 - 并句：就是 sentence_i+1 到来时，立即打断 sentence_i 的处理逻辑，然后将 sentence_i 的stt识别文本和 sentence_i+1 的stt识别文本合并到一起，
-然后一起作为一个sentence的逻辑来处里。此时，sid是 sentence_i+1 的sid，sgid是 sentence_i 的sgid（根据地推关系，如果sentence_i也是和sentence_i-1并句后的结果，那么sgid就是sentence_i-1的sid）
+然后一起作为一个sentence的逻辑来处里。此时，sid是 sentence_i+1 的sid，sgid是 sentence_i 的sgid（根据递推关系，如果sentence_i也是和sentence_i-1并句后的结果，那么sgid就是sentence_i-1的sid）
 - 断句和并句的一个共同点：都会触发「打断功能」
 #### stt采用多实例模式
 一般stt的demo代码都是提供了一个实例（一个连接），然后将音频传入到stt中，由stt来负责语音分句，并由回调函数来返回识别到的句子，但是当前项目并不是。
