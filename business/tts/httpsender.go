@@ -3,6 +3,7 @@ package tts
 import (
 	"context"
 	"errors"
+	"go-aigc-agent-demo/business/sentencelifecycle"
 	"go-aigc-agent-demo/pkg/logger"
 	"go.uber.org/zap"
 	"io"
@@ -18,6 +19,7 @@ type httpSender struct {
 	concurrence chan struct{}
 }
 
+// send 将segment同步入队后，再异步并发地请求tts
 func (h *httpSender) send(ctx context.Context, ss *Sentence, segID int, text string) {
 	if text == "" {
 		close(ss.segChan)
@@ -79,7 +81,7 @@ func (h *httpSender) sendSeg(ctx context.Context, seg *Segment) {
 		if chunkIndex == 0 {
 			seg.RevTime = time.Now()
 			segDur := seg.RevTime.Sub(seg.SendTime)
-			logger.Inst().Info("[tts]<duration>收到一个segment中的首个chunk", zap.Int64("sid", seg.Sid), zap.Int("seg_id", seg.ID),
+			logger.Inst().Info("[tts]<duration>收到一个segment中的首个chunk", sentencelifecycle.Tag(seg.Sid), zap.Int("seg_id", seg.ID),
 				zap.String("seg", seg.Text), zap.Int64("dur", segDur.Milliseconds()))
 		}
 		seg.AudioChan <- buf

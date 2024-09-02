@@ -10,7 +10,7 @@ import (
 type connPool struct {
 	cfg      *Config
 	pool     chan *conn
-	poolSize int
+	poolSize int // 连接池最大空闲连接数，建议取值5
 }
 
 func initConnPool(size int, cfg *Config) (*connPool, error) {
@@ -50,7 +50,7 @@ func (p *connPool) generateConn() {
 			}
 
 			concurrency := 1
-			if n < 5 {
+			if n <= p.poolSize-2 {
 				concurrency = 2
 			}
 			for i := 0; i < concurrency; i++ {

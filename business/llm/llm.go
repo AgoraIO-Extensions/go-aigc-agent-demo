@@ -56,7 +56,14 @@ func (l *LLM) Ask(ctx context.Context, sid int64, question string) (<-chan strin
 					return
 				}
 				segChanCopy <- seg
-				l.dCTX.AddAnswer(seg, sgid)
+				/*
+					这里之所以流式地将answer追加到dCTX（而不是等全部返回后一次性添加到dCTX），是因为在被打断（第2种情况）的时候，当前已经返
+					回的内容可能已经被用户听到了，用户的下一句话可能是基于这部分已返回的内容进行提问的，所以必须将这部分answer及时地添加到dCtx中
+				*/
+				if err = l.dCTX.StreamAddAnswer(seg, sgid); err != nil {
+					logger.Inst().Error("[llm] 流式追加回答失败", zap.Error(err), sentencelifecycle.Tag(sid, sgid))
+					return
+				}
 			case <-ctx.Done():
 				logger.Inst().Info("[llm] 流式读取llm返回文本时被打断", sentencelifecycle.Tag(sid))
 				return

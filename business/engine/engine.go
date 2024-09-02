@@ -251,15 +251,10 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 			select {
 			case seg, ok := <-segChan:
 				if !ok {
-					if err = ttsSender.Send(ctx, i, ""); err != nil {
-						logger.Inst().Error("[tts] [ttsSender.SendPcm] fail.", zap.Error(err), sentencelifecycle.Tag(sid, sgid))
-					}
+					ttsSender.Send(ctx, i, "")
 					break LOOP
 				}
-				if err = ttsSender.Send(ctx, i, seg); err != nil {
-					logger.Inst().Error("[tts] [ttsSender.SendPcm] fail.", zap.Error(err), sentencelifecycle.Tag(sid, sgid))
-					break LOOP
-				}
+				ttsSender.Send(ctx, i, seg)
 			case <-ctx.Done():
 				logger.Inst().Info("[tts] 往tts发segment的过程被打断", sentencelifecycle.Tag(sid))
 				break LOOP

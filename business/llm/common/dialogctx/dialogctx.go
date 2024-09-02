@@ -1,6 +1,7 @@
 package dialogctx
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -93,18 +94,17 @@ func (dCtx *DialogCTX) AddQuestion(question string, sgid int64) []Message {
 	return msgs
 }
 
-// AddAnswer 给最新的问题 添加/追加补充 答案
-// 返回true表示当前goroutine无需继续提供流式输出的答案了
-func (dCtx *DialogCTX) AddAnswer(ansSegment string, sgid int64) bool {
+// StreamAddAnswer 流式地给最新的问题 添加/追加 答案
+func (dCtx *DialogCTX) StreamAddAnswer(ansSegment string, sgid int64) error {
 	questionID := sgid
 	if !dCtx.WithHistory {
-		return false
+		return nil
 	}
 	unitAny, ok := dCtx.qaMap.Load(questionID)
 	if !ok {
-		return true
+		return fmt.Errorf("sgid(%d)对应的qa组合在dCtx.qaMap找不到", sgid)
 	}
 	dialog := unitAny.(*qa)
 	dialog.a = dialog.a + ansSegment
-	return false
+	return nil
 }
