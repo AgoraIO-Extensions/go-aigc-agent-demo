@@ -238,9 +238,9 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				logger.Inst().Info("[llm] 请求llm时被打断", zap.Error(err), sentencelifecycle.Tag(sid, sgid))
-			} else {
-				logger.Inst().Error("[llm.Ask]fail", zap.Error(err), sentencelifecycle.Tag(sid, sgid))
+				continue
 			}
+			logger.Inst().Error("[llm.Ask]fail", zap.Error(err), sentencelifecycle.Tag(sid, sgid))
 			continue
 		}
 		ttsSender := e.tts.NewSender(sid)

@@ -65,7 +65,7 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 		defer func() {
 			err := scanner.Err()
 			if errors.Is(err, context.Canceled) {
-				logger.Inst().Info("scanner.Err()报错", zap.Error(err), zap.Int64("sid", questionID))
+				logger.Inst().Info("[llm] 流式读取返回结果是被打断", zap.String("msg", err.Error()), zap.Int64("sid", questionID))
 				return
 			}
 			if err != nil {

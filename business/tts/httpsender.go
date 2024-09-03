@@ -51,10 +51,10 @@ func (h *httpSender) sendSeg(ctx context.Context, seg *Segment) {
 	rc, err := h.client.StreamAsk(ctx, seg.Text)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			logger.Inst().Info("[tts] http流式请求被取消", zap.Error(err))
-		} else {
-			logger.Inst().Error("[tts] http流式请求失败", zap.Error(err))
+			logger.Inst().Info("[tts] http请求被打断", zap.String("msg", err.Error()))
+			return
 		}
+		logger.Inst().Error("[tts] http流式请求失败", zap.Error(err))
 		return
 	}
 	defer rc.Close()
@@ -71,6 +71,10 @@ func (h *httpSender) sendSeg(ctx context.Context, seg *Segment) {
 			return
 		}
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				logger.Inst().Info("[tts] 读取http返回流被打断", zap.String("msg", err.Error()))
+				return
+			}
 			logger.Inst().Error("[tts] 读取http返回流失败", zap.Error(err))
 			return
 		}
