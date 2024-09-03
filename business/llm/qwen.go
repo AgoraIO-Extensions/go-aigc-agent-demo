@@ -66,6 +66,7 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 			err := scanner.Err()
 			if errors.Is(err, context.Canceled) {
 				logger.Inst().Info("scanner.Err()报错", zap.Error(err), zap.Int64("sid", questionID))
+				return
 			}
 			if err != nil {
 				logger.Inst().Error("scanner.Err()报错", zap.Error(err), zap.Int64("sid", questionID))
