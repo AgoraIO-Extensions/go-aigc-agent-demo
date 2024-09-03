@@ -226,14 +226,14 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 		case sentenceText := <-r.fullText:
 			groupSentencesMerge = groupSentencesMerge + sentenceText
 			if groupSentencesMerge == "" {
-				logger.Inst().Info("[stt] 合并后的stt结果为空字符串", sentencelifecycle.Tag(sid, sgid))
+				logger.Inst().Info("[stt] 并句后的stt结果为空字符串", sentencelifecycle.Tag(sid, sgid))
 				continue
 			}
-			logger.Inst().Info("[stt] 合并后的文本", zap.String("text", groupSentencesMerge), sentencelifecycle.Tag(sid, sgid))
+			logger.Inst().Info("[stt] 并句后的文本", zap.String("text", groupSentencesMerge), sentencelifecycle.Tag(sid, sgid))
 		}
 
 		if errors.Is(ctx.Err(), context.Canceled) {
-			logger.Inst().Info("[stt] 合并文本后，被打断", sentencelifecycle.Tag(sid, sgid))
+			logger.Inst().Info("[stt] 收集了stt结果后，sentence被打断", sentencelifecycle.Tag(sid, sgid))
 			continue
 		}
 
