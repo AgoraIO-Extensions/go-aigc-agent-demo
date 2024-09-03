@@ -37,7 +37,7 @@ level = "debug"
 [llm]
 model_select = "qwen"
 with_history = true
-clause_mode = "none"
+clause_mode = "punctuation"
 
 [llm.prompt]
 output_language = ["zh-CN"]

@@ -13,6 +13,16 @@ type Vad struct {
 func NewVad() *Vad {
 	v := agoraservice.NewAudioVad(
 		&agoraservice.AudioVadConfig{
+			FftSz:                 1024,
+			AnaWindowSz:           768,
+			HopSz:                 160,
+			FrqInputAvailableFlag: 0,
+			UseCVersionAIModule:   0,
+			VoiceProbThr:          0.7,
+			RmsThr:                -40.0,
+			JointThr:              0.0,
+			Aggressive:            2.0,
+
 			StartRecognizeCount:    10,
 			StopRecognizeCount:     6,
 			PreStartRecognizeCount: 10,
