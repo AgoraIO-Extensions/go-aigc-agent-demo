@@ -237,7 +237,7 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 		segChan, err := e.llm.Ask(ctx, sid, groupSentencesMerge)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				logger.Inst().Info("[llm] 请求llm时被打断", zap.Error(err), sentencelifecycle.Tag(sid, sgid))
+				logger.Inst().Info("[llm] 请求llm时被打断", zap.String("msg", err.Error()), sentencelifecycle.Tag(sid, sgid))
 				continue
 			}
 			logger.Inst().Error("[llm.Ask]fail", zap.Error(err), sentencelifecycle.Tag(sid, sgid))
