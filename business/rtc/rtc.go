@@ -22,7 +22,7 @@ type InitParams struct {
 	token       string
 	channelName string
 	userID      string
-	Region      uint
+	AreaCode    uint
 }
 
 type RTC struct {
@@ -34,6 +34,7 @@ type RTC struct {
 }
 
 func NewRTC(appid, token, channelName, userId, region string) *RTC {
+	region = strings.ToLower(region)
 	areaCode := regionMap["glob"]
 	if code, ok := regionMap[region]; ok {
 		areaCode = code
@@ -63,16 +64,12 @@ func NewRTC(appid, token, channelName, userId, region string) *RTC {
 		VideoFrameObserver: nil,
 	}
 
-	region = strings.ToLower(region)
-	if _, ok := regionMap[region]; !ok {
-		region = "glob"
-	}
 	params := &InitParams{
 		appid:       appid,
 		token:       token,
 		channelName: channelName,
 		userID:      userId,
-		Region:      regionMap[region],
+		AreaCode:    areaCode,
 	}
 
 	return &RTC{initParams: params, connConfig: connCfg}
