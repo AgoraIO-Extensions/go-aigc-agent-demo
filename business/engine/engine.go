@@ -165,6 +165,7 @@ func (e *Engine) HandlerSentenceAudio(sid, sgid int64, sentenceAudio <-chan *fil
 				break
 			}
 			if r.Fail {
+				sentenceSTTResult.fullText <- ""
 				logger.Inst().Error("[stt] 异步识别结果失败", sentencelifecycle.Tag(sid, sgid))
 				return
 			}
@@ -219,9 +220,6 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 
 		ctx := r.ctx
 		select {
-		case <-ctx.Done():
-			logger.Inst().Info("[stt] 等待stt获取识别结果时被打断", sentencelifecycle.Tag(sid, sgid))
-			continue
 		case <-time.After(time.Second * 5):
 			logger.Inst().Info("[stt] 等待stt获取识别结果超时5s", sentencelifecycle.Tag(sid, sgid))
 			continue
@@ -232,6 +230,11 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 				continue
 			}
 			logger.Inst().Info("[stt] 合并后的文本", zap.String("text", groupSentencesMerge), sentencelifecycle.Tag(sid, sgid))
+		}
+
+		if errors.Is(ctx.Err(), context.Canceled) {
+			logger.Inst().Info("[stt] 合并文本后，被打断", sentencelifecycle.Tag(sid, sgid))
+			continue
 		}
 
 		segChan, err := e.llm.Ask(ctx, sid, groupSentencesMerge)
