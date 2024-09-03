@@ -34,11 +34,17 @@ type RTC struct {
 }
 
 func NewRTC(appid, token, channelName, userId, region string) *RTC {
+	areaCode := regionMap["glob"]
+	if code, ok := regionMap[region]; ok {
+		areaCode = code
+	}
+
 	svcCfg := agoraservice.AgoraServiceConfig{
 		AppId:         appid,
 		AudioScenario: agoraservice.AUDIO_SCENARIO_CHORUS,
 		LogPath:       "./agora_rtc_log/agorasdk.log",
 		LogSize:       512 * 1024,
+		AreaCode:      areaCode,
 	}
 	agoraservice.Init(&svcCfg)
 

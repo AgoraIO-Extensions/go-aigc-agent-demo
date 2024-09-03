@@ -26,19 +26,11 @@ type rtc struct {
 
 /* -------------------------------------------------  filer  -------------------------------------------------------- */
 
-type Vad struct {
-	Aggressive   *float64 `toml:"aggressive" json:"aggressive"`
-	RmsThr       *float64 `toml:"rmsThr" json:"rmsThr"`
-	VoiceProbThr *float64 `toml:"voiceProbThr" json:"voiceProbThr"`
-	FrameRmsThr  *int     `toml:"frameRmsThr" json:"frameRmsThr"`
-}
-
 type Filter struct {
 	Open         bool `toml:"open"`
 	BeginWinSize int  `toml:"begin_win_size"`
 	EndWinSize   int  `toml:"end_win_size"`
 	DataWinSize  int  `toml:"data_win_size"` // 包含了 beginWinSize
-	Vad          Vad  `toml:"vad"`
 }
 
 /* ------------------------------------------------  stt/tts  ------------------------------------------------------- */
