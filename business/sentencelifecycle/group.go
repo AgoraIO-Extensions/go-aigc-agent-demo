@@ -2,7 +2,7 @@ package sentencelifecycle
 
 import (
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -30,7 +30,7 @@ func (g *Groups) SetSidToSgid(sid int64, sgid int64) {
 func (g *Groups) GetSgidBySid(sid int64) int64 {
 	v, ok := g.sidTosgid.Load(sid)
 	if !ok {
-		logger.Inst().Error("此处为理论不可达代码，出现了代表代码存在bug", zap.Int64("sid", sid))
+		logger.Error("此处为理论不可达代码，出现了代表代码存在bug", slog.Int64("sid", sid))
 		return 0
 	}
 	return v.(int64)
@@ -57,13 +57,13 @@ func (g *Groups) DeleteInAudioEndTimeInOneSentenceGroup(sgid int64) {
 
 /* ----------------------------------------------------- log tag ---------------------------------------------------- */
 
-func Tag(sid int64, sgid ...int64) zap.Field {
+func Tag(sid int64, sgid ...int64) slog.Attr {
 	if len(sgid) > 0 {
-		return zap.Int64s("sid,sgid", []int64{sid, sgid[0]})
+		return slog.Any("sid,sgid", []int64{sid, sgid[0]})
 	}
 	v, ok := groups.sidTosgid.Load(sid)
 	if !ok {
-		return zap.Int64("sid", sid)
+		return slog.Int64("sid", sid)
 	}
-	return zap.Int64s("sid,sgid", []int64{sid, v.(int64)})
+	return slog.Any("sid,sgid", []int64{sid, v.(int64)})
 }

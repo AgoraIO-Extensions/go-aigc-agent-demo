@@ -1,79 +1,110 @@
 package httputil
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
+	"crypto/tls"
 	"fmt"
+	"go-aigc-agent-demo/pkg/logger"
+	"log/slog"
+	"net"
 	"net/http"
+	"sync"
 	"time"
 )
 
 type Client struct {
-	client      *http.Client
-	serviceName string
-	clientName  string
+	client *http.Client
 }
 
-func WarmUpConnectionPool(client *Client, url string) error {
-	req, err := http.NewRequest("HEAD", url, nil)
+func NewClient(scheme, hostName, port string) *Client {
+	transport, err := preConnect(scheme, hostName, port)
 	if err != nil {
-		return fmt.Errorf("[http.NewRequest]%w", err)
+		logger.Error("failed to exec [preConnect], will use default http client", slog.Any("err", err))
+		return &Client{&http.Client{}}
 	}
-
-	resp, err := client.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("[client.Do]%w", err)
-	}
-	defer resp.Body.Close()
-
-	return nil
+	return &Client{client: &http.Client{Transport: transport}}
 }
 
-func NewClient(transport *http.Transport) (c *Client) {
-	if transport == nil {
-		transport = &http.Transport{
-			MaxIdleConns:        100,              // 最大空闲连接数
-			MaxIdleConnsPerHost: 10,               // 每个主机的最大空闲连接数
-			IdleConnTimeout:     90 * time.Second, // 空闲连接的超时时间
-		}
+// preConnect Establish an HTTP/HTTPS/HTTP2 connection to the specified host and port, and add it to the connection pool in advance.
+func preConnect(scheme, hostName, port string) (*http.Transport, error) {
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig:       nil,
 	}
 
-	return &Client{
-		client: &http.Client{
-			Transport: transport,
-			Timeout:   30 * time.Second, // 客户端的请求超时时间
-		},
-	}
-}
+	once := sync.Once{}
 
-func (c *Client) JSONPost(ctx context.Context, url string, reqStruct interface{}, headers map[string]string) (*http.Response, error) {
-	var err error
-
-	reqBody := make([]byte, 0)
-	if reqStruct != nil {
-		reqBody, err = json.Marshal(reqStruct)
+	switch scheme {
+	case "http":
+		tcpConn, err := newTCPConn(context.Background(), hostName, port)
 		if err != nil {
-			err = fmt.Errorf("[Marshal]%w", err)
-			return nil, err
+			return nil, fmt.Errorf("[newTCPConn]%v", err)
 		}
+		transport.DialContext = func(ctx context.Context, network, addr string) (c net.Conn, err error) {
+			once.Do(func() {
+				c = tcpConn
+			})
+			if c != nil {
+				logger.Info("use pre http conn")
+				return c, nil
+			}
+			return newTCPConn(ctx, hostName, port)
+		}
+	case "https":
+		tlsConn, err := newTlsConn(context.Background(), hostName, port)
+		if err != nil {
+			return nil, fmt.Errorf("[newTlsConn]%v", err)
+		}
+		transport.DialTLSContext = func(ctx context.Context, network, addr string) (c net.Conn, err error) {
+			once.Do(func() {
+				c = tlsConn
+			})
+			if c != nil {
+				logger.Info("use pre https conn")
+				return c, nil
+			}
+			return newTlsConn(ctx, hostName, port)
+		}
+	default:
+		return nil, fmt.Errorf("wrong scheme")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(reqBody))
+	return transport, nil
+}
+
+func newTCPConn(ctx context.Context, hostName, port string) (net.Conn, error) {
+	begin := time.Now()
+	dialer := net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	logger.Info(fmt.Sprintf("[http]<duration> establish connection to %s:%s cost:%dms\n", hostName, port, time.Since(begin).Milliseconds()))
+	return dialer.DialContext(ctx, "tcp", hostName+":"+port)
+}
+
+func newTlsConn(ctx context.Context, hostName, port string) (net.Conn, error) {
+	begin := time.Now()
+	dialer := net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	tcpConn, err := dialer.DialContext(ctx, "tcp", hostName+":"+port)
 	if err != nil {
-		err = fmt.Errorf("[http.NewRequest]%w", err)
-		return nil, err
+		return nil, fmt.Errorf("[newTCPConn]%v", err)
 	}
-
-	req.Header.Set("Content-Type", "application/json")
-	for k, v := range headers {
-		req.Header.Set(k, v)
+	tlsConfig := &tls.Config{
+		ServerName: hostName,
+		NextProtos: []string{"h2", "http/1.1"},
 	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		err = fmt.Errorf("[client.Do]%w", err)
-		return nil, err
+	tlsConn := tls.Client(tcpConn, tlsConfig)
+	if err = tlsConn.Handshake(); err != nil {
+		return nil, fmt.Errorf("[tlsConn.Handshake]%v", err)
 	}
-	return resp, err
+	logger.Info(fmt.Sprintf("[https]<duration> establish connection to %s:%s cost:%dms\n", hostName, port, time.Since(begin).Milliseconds()))
+	return tlsConn, nil
 }

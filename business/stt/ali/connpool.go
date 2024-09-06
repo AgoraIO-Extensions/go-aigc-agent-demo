@@ -2,7 +2,7 @@ package ali
 
 import (
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -26,7 +26,7 @@ func initConnPool(size int, cfg *Config) (*connPool, error) {
 			defer wg.Done()
 			c, err := newConn(cfg, 0)
 			if err != nil {
-				logger.Inst().Error("[stt]ali-stt初始化连接池失败", zap.Error(err), zap.Int("i", i))
+				logger.Error("[stt]ali-stt初始化连接池失败", slog.Any("err", err), slog.Int("i", i))
 			}
 			p.pool <- c
 		}(i)
@@ -43,7 +43,7 @@ func (p *connPool) generateConn() {
 		for range ticker {
 			n := len(p.pool)
 			if n < 2 {
-				logger.Inst().Info("[stt] ali-stt 连接池中的连接数<2", zap.Int("conn_num", n))
+				logger.Info("[stt] ali-stt 连接池中的连接数<2", slog.Int("conn_num", n))
 			}
 			if n == p.poolSize {
 				<-p.pool
@@ -58,12 +58,12 @@ func (p *connPool) generateConn() {
 					start := time.Now()
 					c, err := newConn(p.cfg, 0)
 					if err != nil {
-						logger.Inst().Error("[stt]ali-stt异步生成连接失败", zap.Error(err))
+						logger.Error("[stt]ali-stt异步生成连接失败", slog.Any("err", err))
 						return
 					}
 					dur := time.Now().Sub(start)
 					if dur > time.Second {
-						logger.Inst().Info("[stt]ali-stt 连接池建立连接耗时>1s", zap.Int64("dur", dur.Milliseconds()))
+						logger.Info("[stt]ali-stt 连接池建立连接耗时>1s", slog.Int64("dur", dur.Milliseconds()))
 					}
 					p.pool <- c
 				}()

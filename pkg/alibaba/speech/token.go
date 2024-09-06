@@ -5,7 +5,7 @@ import (
 	"fmt"
 	nls "github.com/aliyun/alibabacloud-nls-go-sdk"
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
+	"log/slog"
 )
 
 var TOKEN string
@@ -20,6 +20,6 @@ func InitToken(akid, akkey string) error {
 		return errors.New(str)
 	}
 	TOKEN = tokenMsg.TokenResult.Id
-	logger.Inst().Info("ali speech token", zap.String("token", TOKEN))
+	logger.Info("ali speech token", slog.String("token", TOKEN))
 	return nil
 }

@@ -1,9 +1,10 @@
 package qwen
 
 import (
+	"fmt"
 	"go-aigc-agent-demo/pkg/httputil"
-	"net/http"
-	"time"
+	"go-aigc-agent-demo/pkg/logger"
+	"log/slog"
 )
 
 var client *Client
@@ -13,8 +14,11 @@ func Inst() *Client {
 }
 
 type Client struct {
-	client    *httputil.Client
-	streamAsk streamAsk
+	scheme     string
+	serverHost string
+	serverPort string
+	client     *httputil.Client
+	streamAsk  streamAsk
 }
 
 type streamAsk struct {
@@ -23,18 +27,24 @@ type streamAsk struct {
 }
 
 func Init(url, apikey string) error {
-	transport := &http.Transport{
-		MaxIdleConns:        100,              // 最大空闲连接数
-		MaxIdleConnsPerHost: 3,                // 每个主机的最大空闲连接数
-		IdleConnTimeout:     90 * time.Second, // 空闲连接的超时时间
+	scheme, hostName, port, err := httputil.ParseUrl(url)
+	if err != nil {
+		return fmt.Errorf("[httputil.ParseUrl]%w", err)
 	}
 
 	client = &Client{
-		client: httputil.NewClient(transport),
+		scheme:     scheme,
+		serverHost: hostName,
+		serverPort: port,
+		client:     httputil.NewClient(scheme, hostName, port),
 		streamAsk: streamAsk{
 			url:    url,
 			apiKey: apikey,
 		},
 	}
-	return httputil.WarmUpConnectionPool(client.client, url)
+
+	if err := httputil.WarmUpConnectionPool(client.client, url); err != nil {
+		logger.Error("[httputil.WarmUpConnectionPool] failed.", slog.Any("err", err))
+	}
+	return nil
 }

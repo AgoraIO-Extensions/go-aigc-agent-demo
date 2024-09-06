@@ -1,7 +1,10 @@
 package alitts
 
 import (
+	"fmt"
 	"go-aigc-agent-demo/pkg/httputil"
+	"go-aigc-agent-demo/pkg/logger"
+	"log/slog"
 )
 
 var client *Client
@@ -11,25 +14,39 @@ func Inst() *Client {
 }
 
 type Client struct {
-	client    *httputil.Client
-	streamAsk streamAsk
+	scheme       string
+	serverHost   string
+	serverPort   string
+	client       *httputil.Client
+	streamAskAPI streamAskAPI
 }
 
-type streamAsk struct {
+type streamAskAPI struct {
 	urlPath string
 	appkey  string
 	token   string
 }
 
 func Init(url string, appkey string, token string) error {
+	scheme, hostName, port, err := httputil.ParseUrl(url)
+	if err != nil {
+		return fmt.Errorf("[httputil.ParseUrl]%w", err)
+	}
+
 	client = &Client{
-		client: httputil.NewClient(nil),
-		streamAsk: streamAsk{
+		scheme:     scheme,
+		serverHost: hostName,
+		serverPort: port,
+		client:     httputil.NewClient(scheme, hostName, port),
+		streamAskAPI: streamAskAPI{
 			urlPath: url,
 			appkey:  appkey,
 			token:   token,
 		},
 	}
 
-	return httputil.WarmUpConnectionPool(client.client, url)
+	if err := httputil.WarmUpConnectionPool(client.client, url); err != nil {
+		logger.Error("[httputil.WarmUpConnectionPool] failed.", slog.Any("err", err))
+	}
+	return nil
 }

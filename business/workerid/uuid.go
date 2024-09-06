@@ -1,5 +1,8 @@
 package workerid
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"strings"
+)
 
-var UUID = uuid.New().String() // 这只是默认值，实际会被一些初始化操作修改
+var UUID = strings.Join(strings.Split(uuid.New().String(), "-"), "")

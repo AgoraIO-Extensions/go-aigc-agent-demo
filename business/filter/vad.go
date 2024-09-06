@@ -47,7 +47,7 @@ func (v *Vad) ProcessPcmFrame(inFrame *agoraservice.PcmAudioFrame) ([][]byte, Re
 
 	n := len(outFrame.Data)
 	if n == 0 || n%320 != 0 {
-		logger.Inst().Error(fmt.Sprintf("if n=len(outFrame.Data), then n=%d, n%%320=%d; it's unexpected, code:%d", n, n%320, code))
+		logger.Error(fmt.Sprintf("if n=len(outFrame.Data), then n=%d, n%%320=%d; it's unexpected, code:%d", n, n%320, code))
 		//return nil, code, fmt.Errorf("if n=len(outFrame.Data), then n=%d, n%%320=%d; it's unexpected, code:%d", n, n%320, code)
 	}
 

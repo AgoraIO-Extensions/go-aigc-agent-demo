@@ -6,7 +6,7 @@ import (
 	"go-aigc-agent-demo/business/sentencelifecycle"
 	"go-aigc-agent-demo/business/stt/common"
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
+	"log/slog"
 )
 
 type response struct {
@@ -52,18 +52,18 @@ type payload struct {
 
 func (c *conn) onTaskFailed(jsonStr string, _ interface{}) {
 	if c.sid != 0 {
-		logger.Inst().Info(fmt.Sprintf("onTaskFailed:%s", jsonStr), zap.Int64("sid", c.sid))
+		logger.Info(fmt.Sprintf("onTaskFailed:%s", jsonStr), slog.Int64("sid", c.sid))
 		c.result <- &common.Result{Fail: true}
 	}
 }
 
 // 该函数由 Start 函数触发
 func (c *conn) onStarted(jsonStr string, _ interface{}) {
-	//logger.Inst().Info(fmt.Sprintf("onStarted:%s", text), zap.Int64("sid", c.sid))
+	//logger.Inst().Info(fmt.Sprintf("onStarted:%s", text), slog.Int64("sid", c.sid))
 }
 
 func (c *conn) onSentenceBegin(jsonStr string, _ interface{}) {
-	//logger.Inst().Info(fmt.Sprintf("onSentenceBegin:%s", text), zap.Int64("sid", c.sid))
+	//logger.Inst().Info(fmt.Sprintf("onSentenceBegin:%s", text), slog.Int64("sid", c.sid))
 }
 
 // 返回过程中的识别结果
@@ -77,11 +77,11 @@ func (c *conn) onResultChanged(jsonStr string, _ interface{}) {
 
 	resp := response{}
 	if err = json.Unmarshal([]byte(jsonStr), &resp); err != nil {
-		logger.Inst().Error("ali stt返回文本json unmarshal失败", zap.Error(err), zap.Int64("sid", c.sid))
+		logger.Error("ali stt返回文本json unmarshal失败", slog.Any("err", err), slog.Int64("sid", c.sid))
 		return
 	}
 	text := resp.Payload.Result
-	logger.Inst().Debug("[stt] onResultChanged 识别到文本中间值", zap.Int64("sid", c.sid), zap.String("text", text))
+	logger.Debug("[stt] onResultChanged 识别到文本中间值", slog.Int64("sid", c.sid), slog.String("text", text))
 	c.result <- &common.Result{Text: text}
 }
 
@@ -96,19 +96,19 @@ onSentenceEnd: 返回最终的识别结果
 func (c *conn) onSentenceEnd(jsonStr string, _ interface{}) {
 	resp := response{}
 	if err := json.Unmarshal([]byte(jsonStr), &resp); err != nil {
-		logger.Inst().Error("ali stt返回文本json unmarshal失败", zap.Error(err), zap.Int64("sid", c.sid))
+		logger.Error("ali stt返回文本json unmarshal失败", slog.Any("err", err), slog.Int64("sid", c.sid))
 		c.result <- &common.Result{Fail: true}
 		return
 	}
 	c.returnedAns = true
 	text := resp.Payload.Result
-	logger.Inst().Info("[stt] onSentenceEnd 识别到文本", sentencelifecycle.Tag(c.sid), zap.String("text", text))
+	logger.Info("[stt] onSentenceEnd 识别到文本", sentencelifecycle.Tag(c.sid), slog.String("text", text))
 	c.result <- &common.Result{Text: text, Complete: true}
 	close(c.result)
 }
 
 func (c *conn) onCompleted(jsonStr string, _ interface{}) {
-	logger.Inst().Info(fmt.Sprintf("[stt] onCompleted:%s", jsonStr), zap.Int64("sid", c.sid))
+	logger.Info(fmt.Sprintf("[stt] onCompleted:%s", jsonStr), slog.Int64("sid", c.sid))
 	if !c.returnedAns {
 		c.result <- &common.Result{Text: "", Complete: true}
 		close(c.result)
@@ -117,6 +117,6 @@ func (c *conn) onCompleted(jsonStr string, _ interface{}) {
 
 func (c *conn) onClose(_ interface{}) {
 	if c.sid != 0 {
-		logger.Inst().Info(fmt.Sprintf("onClose"), zap.Int64("sid", c.sid))
+		logger.Info(fmt.Sprintf("onClose"), slog.Int64("sid", c.sid))
 	}
 }

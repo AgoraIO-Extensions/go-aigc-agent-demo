@@ -7,7 +7,7 @@ import (
 )
 
 func (cli *Client) StreamAsk(ctx context.Context, text string) (io.ReadCloser, error) {
-	sa := cli.streamAsk
+	sa := cli.streamAskAPI
 	bodyContent := make(map[string]interface{})
 	bodyContent["appkey"] = sa.appkey
 	bodyContent["text"] = text

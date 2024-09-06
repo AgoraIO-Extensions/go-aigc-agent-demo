@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
 	"io"
+	"log/slog"
 )
 
 type Input struct {
@@ -80,7 +80,7 @@ func (cli *Client) StreamAsk(ctx context.Context, model string, msgs []Msg, sid 
 	if resp.StatusCode/100 != 2 {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			logger.Inst().Error("io.ReadAll报错", zap.Error(err), zap.Int64("sid", sid))
+			logger.Error("io.ReadAll报错", slog.Any("err", err), slog.Int64("sid", sid))
 		}
 		return nil, fmt.Errorf("服务端返回错误响应, statuscode:%d, resp.body:%s", resp.StatusCode, string(body))
 	}

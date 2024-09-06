@@ -3,7 +3,7 @@ package filter
 import (
 	"go-aigc-agent-demo/pkg/agora-go-sdk/go_wrapper/agoraservice"
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
+	"log/slog"
 	"time"
 )
 
@@ -31,7 +31,7 @@ func NewFilter(FirstSid int64) *Filter {
 func (f *Filter) OnRcvRTCAudio(con *agoraservice.RtcConnection, channelId string, uid string, inFrame *agoraservice.PcmAudioFrame) {
 	cks, status, err := f.vad.ProcessPcmFrame(inFrame)
 	if err != nil {
-		logger.Inst().Info("[vad] 处理音频失败", zap.Error(err))
+		logger.Info("[vad] 处理音频失败", slog.Any("err", err))
 		return
 	}
 
@@ -41,7 +41,7 @@ func (f *Filter) OnRcvRTCAudio(con *agoraservice.RtcConnection, channelId string
 		return
 	case MuteToSpeak:
 		f.sid++
-		logger.Inst().Info("[filter] 收到sentence音频头", zap.Int64("sid", f.sid))
+		logger.Info("[filter] 收到sentence音频头", slog.Int64("sid", f.sid))
 		for i, ck := range cks {
 			state := MuteToSpeak
 			if i != 0 {
@@ -64,14 +64,14 @@ func (f *Filter) OnRcvRTCAudio(con *agoraservice.RtcConnection, channelId string
 			}
 		}
 	case SpeakToMute:
-		logger.Inst().Info("[filter] 收到sentence音频尾", zap.Int64("sid", f.sid))
+		logger.Info("[filter] 收到sentence音频尾", slog.Int64("sid", f.sid))
 		f.output <- &Chunk{
 			Sid:    f.sid,
 			Status: SpeakToMute,
 			Time:   now,
 		}
 	default:
-		logger.Inst().Error("[filter] This code should never be executed", zap.Any("status", status))
+		logger.Error("[filter] This code should never be executed", slog.Any("status", status))
 	}
 	return
 }

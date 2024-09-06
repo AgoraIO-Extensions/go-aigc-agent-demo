@@ -8,8 +8,9 @@ import (
 	qwenCli "go-aigc-agent-demo/clients/qwen"
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/alibaba/speech"
+	chat_gpt "go-aigc-agent-demo/pkg/azureopenai/chat-gpt"
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,21 +23,18 @@ func main() {
 	var err error
 
 	// 加载配置文件
-	if err = config.Init("./config/alibaba.toml"); err != nil {
+	if err = config.Init("./config/local.toml"); err != nil {
 		panic(fmt.Sprintf("基于配置文件初始化配置失败:%s", err))
 	}
 
 	cfg := config.Inst()
 
 	// 初始化日志
-	if err = logger.Init(cfg.Log.File, cfg.Log.Level, workerid.UUID); err != nil {
-		fmt.Printf("init logger failed, err:%s\n", err)
-		os.Exit(1)
-	}
-	logger.Inst().Info(fmt.Sprintf("buildTimeStamp:%s, config:%+v", buildTimeStamp, cfg))
+	logger.Init(cfg.Log.File, cfg.Log.Level, map[any]any{"uuid": workerid.UUID})
+	logger.Info(fmt.Sprintf("buildTimeStamp:%s, config:%+v", buildTimeStamp, cfg))
 
 	if err = initDependency(cfg); err != nil {
-		logger.Inst().Error(err.Error(), zap.String("func", "initDependency"))
+		logger.Error(err.Error(), slog.String("func", "initDependency"))
 		fmt.Printf("InitDependency执行失败: %v", err)
 		os.Exit(1)
 	}
@@ -44,21 +42,21 @@ func main() {
 	// 初始化 engine
 	em, err := engine.InitEngine()
 	if err != nil {
-		logger.Inst().Error(err.Error(), zap.String("func", "engine.InitEngine"))
+		logger.Error(err.Error(), slog.String("func", "engine.InitEngine"))
 		os.Exit(1)
 	}
-	logger.Inst().Info("EngineManager初始化成功...")
+	logger.Info("EngineManager初始化成功...")
 
 	// 启动 engine
 	if err = em.Run(); err != nil {
-		logger.Inst().Fatal(err.Error(), zap.String("func", "em.Run"))
+		logger.Error("fail to ")
 	}
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
 
-	logger.Inst().Info(fmt.Sprintf("收到退出信号%v，即将退出", s))
+	logger.Info(fmt.Sprintf("收到退出信号%v，即将退出", s))
 	return
 }
 
@@ -77,6 +75,10 @@ func initDependency(cfg *config.Config) error {
 	case config.LLMQwen:
 		if err := qwenCli.Init(cfg.LLM.QWen.URL, cfg.LLM.QWen.ApiKey); err != nil {
 			return fmt.Errorf("[qwenCli.Init]%v", err)
+		}
+	case config.LLMChatGPT4o:
+		if err := chat_gpt.InitChatGPT(chat_gpt.NewConfig(cfg.LLM.ChatGPT4o.Key, cfg.LLM.ChatGPT4o.EndPoint)); err != nil {
+			return fmt.Errorf("[chat_gpt.InitChatGPT 4o]%v", err)
 		}
 	}
 

@@ -3,55 +3,50 @@ package tts
 import (
 	"context"
 	"fmt"
-	"go-aigc-agent-demo/business/tts/vendors/ali"
+	"github.com/Microsoft/cognitive-services-speech-sdk-go/common"
+	"go-aigc-agent-demo/business/sentencelifecycle"
+	"go-aigc-agent-demo/business/tts/ali"
+	"go-aigc-agent-demo/business/tts/ms"
 	"go-aigc-agent-demo/config"
+	"go-aigc-agent-demo/pkg/logger"
+	"log/slog"
+	"time"
 )
 
-type TTS struct {
-	httpSender *httpSender
+type TTS interface {
+	Send(ctx context.Context, segmentID int, segmentContent string)
+	GetResult() <-chan []byte
 }
 
-func Init() (*TTS, error) {
-	cfg := config.Inst()
-	t := &TTS{}
+type Factory struct {
+	Vendor      config.TTSSelect
+	concurrence int
+}
 
-	switch cfg.TTS.Select {
-	case config.AliTTS:
-		t.httpSender = &httpSender{client: ali.NewAliTTS(), concurrence: make(chan struct{}, 2)}
+func NewFactory(vendor config.TTSSelect, concurrence int) (*Factory, error) {
+	switch vendor {
+	case config.AliTTS, config.MsTTS:
+		return &Factory{Vendor: vendor, concurrence: concurrence}, nil
 	default:
-		return nil, fmt.Errorf("tts vendor选择错误")
+		return nil, fmt.Errorf("不支持vendor参数:%s", vendor)
 	}
-
-	return t, nil
 }
 
-func (t *TTS) NewSender(sid int64) *Sender {
-	s := &Sender{
-		sid:        sid,
-		httpSender: t.httpSender,
-		sentence: &Sentence{
-			ID:        sid,
-			AudioChan: make(chan []byte, 1000),
-		},
+func (f *Factory) CreateTTS(sid int64) (TTS, error) {
+	switch f.Vendor {
+	case config.AliTTS:
+		return ali.NewTTS(sid, f.concurrence), nil
+	case config.MsTTS:
+		c := config.Inst().TTS.MS
+		msConfig := ms.NewTTSConfig(c.SetLog, c.SpeechKey, c.SpeechRegion, c.LanguageCheckMode, c.SpecifyLanguage, c.OutputVoice, common.Riff16Khz16BitMonoPcm)
+		start := time.Now()
+		msTTS, err := ms.NewTTS(sid, f.concurrence, msConfig)
+		if err != nil {
+			return nil, fmt.Errorf("[ms.NewTTS]%v", err)
+		}
+		logger.Debug("[tts]<duration> ms.NewTTS", slog.Int64("dur", time.Since(start).Milliseconds()), sentencelifecycle.Tag(sid))
+		return msTTS, nil
+	default:
+		return nil, fmt.Errorf("不支持vendor参数:%s", f.Vendor)
 	}
-	if t.httpSender != nil {
-		s.sentence.segChan = make(chan *Segment, 1000)
-		s.sentence.mergeSegments() // 异步获取并合并音频结果
-	}
-	return s
-}
-
-type Sender struct {
-	sid        int64
-	httpSender *httpSender
-	sentence   *Sentence
-}
-
-// Send text为 "" 则表示当前session发送结束
-func (s *Sender) Send(ctx context.Context, segID int, text string) {
-	s.httpSender.send(ctx, s.sentence, segID, text)
-}
-
-func (s *Sender) GetResult() <-chan []byte {
-	return s.sentence.AudioChan
 }

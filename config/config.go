@@ -35,6 +35,16 @@ type Filter struct {
 
 /* ------------------------------------------------  stt/tts  ------------------------------------------------------- */
 
+type msSTT struct {
+	SpeechKey              string   `toml:"speech_key"`
+	SpeechRegion           string   `toml:"speech_region"`
+	LanguageCheckMode      int      `toml:"language_check_mode"`       // 语言检测模式
+	AutoAudioCheckLanguage []string `toml:"auto_audio_check_language"` // 自动识别音频语种范围
+	SpecifyLanguage        string   `toml:"specify_language"`          // 指定的音频识别语种
+	SetLog                 bool     `toml:"set_log"`                   // 记录speechsdk中的stt执行的信息日志
+	ResultQueueSize        int      `toml:"result_queue_size"`         // stt返回文本的缓冲队列长度
+}
+
 type aliSTT struct {
 	URL                string `toml:"url"`
 	AKID               string `toml:"akid"`
@@ -46,19 +56,20 @@ type aliSTT struct {
 type STTMode string
 
 type SttSelect string
-type TtsSelect string
+type TTSSelect string
 
 const (
 	MsSTT      SttSelect = "ms"
 	AliSTT     SttSelect = "ali"
-	MsTTS      TtsSelect = "ms"
-	AliTTS     TtsSelect = "ali"
-	AliCosyTTS TtsSelect = "cosy"
+	MsTTS      TTSSelect = "ms"
+	AliTTS     TTSSelect = "ali"
+	AliCosyTTS TTSSelect = "cosy"
 )
 
 type STT struct {
 	Select SttSelect `toml:"select"`
 	Mode   STTMode   `toml:"mode"`
+	MS     msSTT     `toml:"ms"`
 	Ali    aliSTT    `toml:"ali"`
 }
 
@@ -89,7 +100,7 @@ type cosyTTS struct {
 }
 
 type TTS struct {
-	Select TtsSelect `toml:"select"`
+	Select TTSSelect `toml:"select"`
 	MS     msTTS     `toml:"ms"`
 	Ali    aliTTS    `toml:"ali"`
 	Cosy   cosyTTS   `toml:"cosy"`
@@ -100,7 +111,8 @@ type TTS struct {
 type ModelSelect string
 
 const (
-	LLMQwen ModelSelect = "qwen"
+	LLMQwen      ModelSelect = "qwen"
+	LLMChatGPT4o ModelSelect = "chat-gpt4o"
 )
 
 type Prompt struct {
@@ -130,12 +142,20 @@ type QWen struct {
 	ApiKey     string `toml:"apikey"`
 }
 
+type ChatGPT struct {
+	Key        string `toml:"key"`
+	Model      string `toml:"model"`
+	EndPoint   string `toml:"end_point"`
+	DialogNums int    `toml:"dialog_nums"`
+}
+
 type LLM struct {
 	ModelSelect ModelSelect `toml:"model_select"` // 枚举值没定义自定义类型是因为flag解析命令行参数时无法使用自定义类型
 	WithHistory bool        `toml:"with_history"`
 	ClauseMode  ClauseMode  `toml:"clause_mode"`
 	Prompt      Prompt      `toml:"prompt"`
 	QWen        QWen        `toml:"qwen"`
+	ChatGPT4o   ChatGPT     `toml:"chat_gpt4o"`
 }
 
 /* -------------------------------------------------  config  ------------------------------------------------------- */
