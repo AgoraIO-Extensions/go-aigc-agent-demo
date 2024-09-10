@@ -25,17 +25,9 @@ type Output struct {
 	Choices []Choice `json:"choices"`
 }
 
-type FinishReason string
-
-const (
-	FinishNull   FinishReason = "null" // 生成过程中
-	FinishStop   FinishReason = "stop" // stop token导致结束
-	FinishLength FinishReason = "null" // 生成长度导致结束
-)
-
 type Choice struct {
-	Message      Msg          `json:"message"`
-	FinishReason FinishReason `json:"finish_reason"`
+	Message      Msg    `json:"message"`
+	FinishReason string `json:"finish_reason"`
 }
 
 type Usage struct {
@@ -80,9 +72,9 @@ func (cli *Client) StreamAsk(ctx context.Context, model string, msgs []Msg, sid 
 	if resp.StatusCode/100 != 2 {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			logger.Error("io.ReadAll报错", slog.Any("err", err), slog.Int64("sid", sid))
+			logger.Error("[io.ReadAll]", slog.Any("err", err), slog.Int64("sid", sid))
 		}
-		return nil, fmt.Errorf("服务端返回错误响应, statuscode:%d, resp.body:%s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("server returned an error, statuscode:%d, resp.body:%s", resp.StatusCode, string(body))
 	}
 
 	return resp.Body, nil

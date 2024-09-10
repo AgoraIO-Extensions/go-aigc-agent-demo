@@ -41,7 +41,7 @@ func (qw *QWen) StreamAsk(ctx context.Context, sid int64, llmMsgs []dialogctx.Me
 	startTime := time.Now()
 	readCloser, err := qwenCli.Inst().StreamAsk(ctx, qw.Model, qwenMsgs, sid)
 	if err != nil {
-		return nil, fmt.Errorf("流式请求qwen失败.%w", err)
+		return nil, fmt.Errorf("failed to request qwen in a streaming manner.%w", err)
 	}
 
 	result := make(chan string, 1000)
@@ -65,11 +65,11 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 		defer func() {
 			err := scanner.Err()
 			if errors.Is(err, context.Canceled) {
-				logger.Info("[llm] 流式读取返回结果是被打断", slog.String("msg", err.Error()), slog.Int64("sid", questionID))
+				logger.Info("[llm] Interrupted while reading the qwen result in a streaming manner.", slog.String("msg", err.Error()), slog.Int64("sid", questionID))
 				return
 			}
 			if err != nil {
-				logger.Error("scanner.Err()报错", slog.Any("err", err), slog.Int64("sid", questionID))
+				logger.Error("scanner.Err()", slog.Any("err", err), slog.Int64("sid", questionID))
 			}
 		}()
 
@@ -84,7 +84,7 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 				data = strings.TrimSpace(data)
 				var respData qwenCli.SSEResp
 				if err := json.Unmarshal([]byte(data), &respData); err != nil {
-					logger.Error("解析sse data事件的数据失败", slog.Any("err", err), slog.Int64("sid", questionID))
+					logger.Error("[llm] Failed to parse the data from the SSE event", slog.Any("err", err), slog.Int64("sid", questionID))
 					return
 				}
 				choices := respData.Output.Choices
@@ -94,20 +94,20 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 				}
 				content := choices[0].Message.Content
 
-				logger.Info("[llm] 收到llm返回的content", slog.Int64("sid", questionID), slog.String("content", choices[0].Message.Content))
+				logger.Info("[llm] Received content returned by the LLM", slog.Int64("sid", questionID), slog.String("content", choices[0].Message.Content))
 				if content == "" {
-					logger.Info("返回空content", slog.Int64("sid", questionID))
+					logger.Info("[llm] Returned empty content", slog.Int64("sid", questionID))
 					continue
 				}
 				if isFirstContent {
-					logger.Info("[llm] 收到首个content的耗时", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", questionID))
+					logger.Info("[llm] Time taken to receive the first content", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", questionID))
 					isFirstContent = false
 				}
 
 				switch qw.ClauseMode {
 				case config.NoClause:
-					if isFirstContent {
-						logger.Info("[llm] 收到首个segment的耗时", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", questionID))
+					if isFirstSegment {
+						logger.Info("[llm] Time taken to receive the first segment", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", questionID))
 					}
 					result <- content
 				case config.PunctuationClause:
@@ -116,7 +116,7 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 						return
 					}
 					if send && isFirstSegment {
-						logger.Info("[llm] 收到首个segment的耗时", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", questionID))
+						logger.Info("[llm] Time taken to receive the first segment", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", questionID))
 						isFirstSegment = false
 					}
 					seg = segment
@@ -141,7 +141,7 @@ func (qw *QWen) SetSegmentByPunctuation(sid int64, streamText, seg string, resul
 		if clause.CharMap[char] {
 			result <- seg
 			send = true
-			logger.Info("[llm] 生成segment", slog.Int64("sid", sid), slog.String("seg", seg))
+			logger.Info("[llm] Generate segment", slog.Int64("sid", sid), slog.String("seg", seg))
 			seg = ""
 		}
 	}

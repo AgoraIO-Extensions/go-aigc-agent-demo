@@ -22,10 +22,9 @@ func newSpeechSynthesizer(cfg *Config, speechConfig *speech.SpeechConfig) (*spee
 		return syn, nil
 	}
 
-	// 如果没有设置 SpeechSynthesisVoiceName 或 SpeechSynthesisLanguage，则会讲 en-US 的默认语音。
-	// 如果仅设置了 SpeechSynthesisLanguage，则会讲指定区域设置的默认语音。
-	// 如果同时设置了 SpeechSynthesisVoiceName 和 SpeechSynthesisLanguage，则会忽略 SpeechSynthesisLanguage 设置。 系统会讲你使用 SpeechSynthesisVoiceName 指定的语音。
-	// 如果使用语音合成标记语言 (SSML) 设置了 voice 元素，则会忽略 SpeechSynthesisVoiceName 和 SpeechSynthesisLanguage 设置。
+	// If both SpeechSynthesisVoiceName and SpeechSynthesisLanguage are not set, the default voice for en-US will be used.
+	// If only SpeechSynthesisLanguage is set, the default voice for the specified locale will be used.
+	// If both SpeechSynthesisVoiceName and SpeechSynthesisLanguage are set, the SpeechSynthesisLanguage setting will be ignored. The system will use the voice specified by SpeechSynthesisVoiceName.
 	if cfg.specifyLanguage != "" {
 		if err := speechConfig.SetSpeechSynthesisLanguage(cfg.specifyLanguage); err != nil {
 			return nil, fmt.Errorf("[SetSpeechSynthesisLanguage]%v", err)
@@ -49,18 +48,18 @@ func newSpeechSynthesizer(cfg *Config, speechConfig *speech.SpeechConfig) (*spee
 type Config struct {
 	setLog                      bool
 	languageCheckMode           LanguageCheckMode
-	specifyLanguage             string // 输出音频的语种. 参考链接：https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts
-	outputVoice                 string // 输出音频的语种+口音. 参考链接：同上链接
+	specifyLanguage             string // Output audio language. Reference link: https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts
+	outputVoice                 string // Output audio language and accent. Reference link: Same as above
 	speechKey                   string
 	speechRegion                string
-	SpeechSynthesisOutputFormat common.SpeechSynthesisOutputFormat // 输出音频格式 默认是：common.Riff16Khz16BitMonoPcm
+	SpeechSynthesisOutputFormat common.SpeechSynthesisOutputFormat // Output audio format.
 }
 
 type LanguageCheckMode int
 
 const (
-	AutoCheck LanguageCheckMode = 0 // 自动检测模式
-	Specify   LanguageCheckMode = 1 // 指定语言模式
+	AutoCheck LanguageCheckMode = 0 // Automatic language detection mode
+	Specify   LanguageCheckMode = 1 // Specify language mode
 )
 
 func NewTTSConfig(setLog bool, speechKey, speechRegion string, languageCheckMode int, specifyLanguage, outputVoice string, outputFormat common.SpeechSynthesisOutputFormat) *Config {
@@ -133,7 +132,7 @@ func (tts *TTS) close() {
 	}
 }
 
-// streamAsk 将文本发送到tts
+// streamAsk send text to tts
 func (tts *TTS) streamAsk(ctx context.Context, text string) (io.ReadCloser, error) {
 	task := tts.speechSynthesizer.StartSpeakingTextAsync(text)
 
@@ -141,17 +140,17 @@ func (tts *TTS) streamAsk(ctx context.Context, text string) (io.ReadCloser, erro
 
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("等待tts返回时被打断")
-	case outcome = <-task: // 返回服务端的语音识别结果基本信息（此时还不包含音频数据）
+		return nil, fmt.Errorf("interrupted while waiting for TTS to return, %w", context.Canceled)
+	case outcome = <-task: // Return basic information of the server's speech recognition result (at this point, it does not include audio data)
 	}
 
 	defer outcome.Close()
 	if outcome.Error != nil {
-		return nil, fmt.Errorf("tts服务端对text合成语音过程中报错：%v", outcome.Error)
+		return nil, fmt.Errorf("error occurred on the TTS server during the text-to-speech synthesis process：%v", outcome.Error)
 	}
 	stream, err := speech.NewAudioDataStreamFromSpeechSynthesisResult(outcome.Result)
 	if err != nil {
-		return nil, fmt.Errorf("获取tts语音合成结果的stream对象失败：%v", err)
+		return nil, fmt.Errorf("[NewAudioDataStreamFromSpeechSynthesisResult]%v", err)
 	}
 
 	return &streamReaderCloser{stream: stream}, nil

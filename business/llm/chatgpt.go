@@ -35,7 +35,7 @@ func (gpt *ChatGPT) StreamAsk(_ context.Context, sid int64, llmMsgs []dialogctx.
 	startTime := time.Now()
 	resp, err := ms_chat_gpt.Inst().StreamAsk(chatGptMsgs, gpt.modelName)
 	if err != nil {
-		return nil, fmt.Errorf("流式请求 ms_chat_gpt 失败.%w", err)
+		return nil, fmt.Errorf("failed to request ms_chat_gpt in a streaming manner.%w", err)
 	}
 
 	segmentChan := make(chan string, 1000)
@@ -69,12 +69,12 @@ func (gpt *ChatGPT) streamRead(sid int64, resp azopenai.GetChatCompletionsStream
 				break
 			}
 			if err != nil {
-				logger.Error("从chat-gpt流式读取失败", slog.Any("err", err), slog.Int64("sid", sid))
+				logger.Error("Failed to read data from chat-gpt in a streaming manner", slog.Any("err", err), slog.Int64("sid", sid))
 				return
 			}
 
 			if isFirstContent {
-				logger.Info("[llm] 收到首个content的耗时", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", sid))
+				logger.Info("[llm] Time taken to receive the first content", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", sid))
 				isFirstContent = false
 			}
 
@@ -87,7 +87,7 @@ func (gpt *ChatGPT) streamRead(sid int64, resp azopenai.GetChatCompletionsStream
 					if clause.CharMap[char] {
 						segChan <- segment
 						if isFirstSegment {
-							logger.Info("[llm] 收到首个segment的耗时", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", sid))
+							logger.Info("[llm] Time taken to receive the first segment", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", sid))
 							isFirstSegment = false
 						}
 						segment = ""

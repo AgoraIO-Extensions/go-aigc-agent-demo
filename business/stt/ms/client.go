@@ -35,19 +35,15 @@ func newClient(sid int64, cfg *Config) (*client, error) {
 		}
 	}()
 
-	/* 构建流，目前只接收 (16 kHz, 16 bit, mono PCM) 的流 */
+	/* Currently, only support (16 kHz, 16 bit, mono PCM)  */
 	c.sttInputStream, err = newPushAudioInputStream() // 只支持 (16 kHz, 16 bit, mono PCM)
 	if err != nil {
 		return nil, fmt.Errorf("[newPushAudioInputStream]%v", err)
 	}
-
-	/* 构建 *AudioConfig */
 	c.audioConfig, err = audio.NewAudioConfigFromStreamInput(c.sttInputStream)
 	if err != nil {
 		return nil, fmt.Errorf("[NewAudioConfigFromStreamInput]%v", err)
 	}
-
-	/* 构建 *SpeechConfig */
 	c.speechConfig, err = speech.NewSpeechConfigFromSubscription(cfg.speechKey, cfg.speechRegion)
 	if err != nil {
 		return nil, fmt.Errorf("[NewSpeechConfigFromSubscription]%v", err)
@@ -57,23 +53,16 @@ func newClient(sid int64, cfg *Config) (*client, error) {
 			return nil, fmt.Errorf("[setLog]%v", err)
 		}
 	}
-
 	c.speechRecognizer, err = newSpeechRecognizer(cfg, c.speechConfig, c.audioConfig)
 	if err != nil {
 		return nil, fmt.Errorf("[newSpeechRecognizer]%v", err)
 	}
-
-	/* 配置 Handler */
 	c.speechRecognizer.SessionStarted(c.sessionStartedHandler)
 	c.speechRecognizer.SessionStopped(c.sessionStoppedHandler)
 	c.speechRecognizer.Recognizing(c.recognizingHandler)
 	c.speechRecognizer.Recognized(c.recognizedHandler)
 	c.speechRecognizer.Canceled(c.cancelledHandler)
-
-	/* 开始识别语音 */
 	c.speechRecognizer.StartContinuousRecognitionAsync()
-
-	/* 异步回收client资源 */
 	c.asyncCloseSTT()
 
 	return c, nil
@@ -84,10 +73,10 @@ func (c *client) asyncCloseSTT() {
 		select {
 		case <-c.stop:
 			c.close()
-			logger.Info("[stt 回收] 释放资源", sentencelifecycle.Tag(c.sid))
+			logger.Info("[stt] release resource", sentencelifecycle.Tag(c.sid))
 		case <-time.After(time.Second * 30):
 			c.close()
-			logger.Info("[stt 回收] 超30s未收到识别结束信号，立即回收连接资源", sentencelifecycle.Tag(c.sid))
+			logger.Info("[stt] Exceeded 30 seconds without receiving the recognition end signal, will release resource immediately.", sentencelifecycle.Tag(c.sid))
 		}
 	}()
 }
@@ -117,7 +106,7 @@ func newSpeechRecognizer(cfg *Config, speechConfig *speech.SpeechConfig, audioCo
 
 func (c *client) close() {
 	if c.sttInputStream != nil {
-		c.sttInputStream.CloseStream() // 关闭推流
+		c.sttInputStream.CloseStream()
 	}
 	if c.speechRecognizer != nil {
 		c.speechRecognizer.StopContinuousRecognitionAsync()
@@ -132,6 +121,6 @@ func (c *client) close() {
 		c.audioConfig.Close()
 	}
 	if c.sttInputStream != nil {
-		c.sttInputStream.Close() // 释放推流资源
+		c.sttInputStream.Close()
 	}
 }

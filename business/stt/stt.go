@@ -38,7 +38,7 @@ func NewFactory(vendorName config.SttSelect, sttConfig config.STT) (*Factory, er
 		c := sttConfig.MS
 		factory.msConfig = ms.NewConfig(c.SetLog, c.LanguageCheckMode, c.AutoAudioCheckLanguage, c.SpecifyLanguage, c.SpeechKey, c.SpeechRegion)
 	default:
-		return nil, fmt.Errorf("vendorname 传值不符合预期")
+		return nil, fmt.Errorf("incorrect vendorname parameter")
 	}
 	return factory, nil
 }
@@ -60,6 +60,6 @@ func (f *Factory) CreateSTT(sid int64) (STT, error) {
 		logger.Debug("[stt]<duration> ms.NewSTT", slog.Int64("dur", time.Since(start).Milliseconds()), sentencelifecycle.Tag(sid))
 		return msSTT, nil
 	default:
-		return nil, fmt.Errorf("vendorname错误")
+		return nil, fmt.Errorf("incorrect vendorname parameter")
 	}
 }

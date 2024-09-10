@@ -5,7 +5,6 @@ import (
 	"github.com/Microsoft/cognitive-services-speech-sdk-go/audio"
 )
 
-// newPushAudioInputStream 构建一个「stt输入流」
 func newPushAudioInputStream() (*audio.PushAudioInputStream, error) {
 	stream, err := audio.CreatePushAudioInputStream()
 	if err != nil {
@@ -14,7 +13,7 @@ func newPushAudioInputStream() (*audio.PushAudioInputStream, error) {
 	return stream, nil
 }
 
-// pumpChunkIntoStream 将音频写到「stt输入流」中
+// pumpChunkIntoStream write audio to stream
 func (c *client) pumpChunkIntoStream(buf []byte) error {
 	if len(buf) == 0 {
 		return nil

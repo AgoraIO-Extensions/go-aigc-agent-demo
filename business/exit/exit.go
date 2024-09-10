@@ -11,7 +11,7 @@ import (
 
 type ExitManager struct {
 	StartTime   int64
-	MaxLifeTime int64 // 进程最大存活时间
+	MaxLifeTime int64 // Maximum process uptime.
 }
 
 func NewExitManager(startTime int64, maxLifeTime int64) *ExitManager {
@@ -21,9 +21,9 @@ func NewExitManager(startTime int64, maxLifeTime int64) *ExitManager {
 	}
 }
 
-// OnUserLeft 处理用户离开事件（当前只支持单个用户的情况）
+// OnUserLeft Handle user departure events (currently supports only single user scenarios)
 func (e *ExitManager) OnUserLeft(conn *agoraservice.RtcConnection, uid string, reason int) {
-	logger.Info("[exit] 用户离开，进程即将退出", slog.String("uid", uid))
+	logger.Info("[exit] User has left; the process is about to exit.", slog.String("uid", uid))
 	os.Exit(0)
 }
 
@@ -31,12 +31,12 @@ func (e *ExitManager) HandlerMaxLifeTime() {
 	go func() {
 		leftLifeTime := e.MaxLifeTime - (time.Now().Unix() - e.StartTime)
 		if leftLifeTime <= 0 {
-			logger.Info("达到最大存活时间，即将退出...")
+			logger.Info("Reached maximum uptime; exiting soon...")
 			os.Exit(1)
 		}
-		logger.Info(fmt.Sprintf("剩余存活时间：%d", leftLifeTime))
+		logger.Info(fmt.Sprintf("Remaining uptime: %d", leftLifeTime))
 		<-time.After(time.Second * time.Duration(leftLifeTime))
-		logger.Info("达到最大存活时间，即将退出...")
+		logger.Info("Reached maximum uptime; exiting soon...")
 		os.Exit(0)
 	}()
 }

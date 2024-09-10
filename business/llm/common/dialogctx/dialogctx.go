@@ -15,15 +15,15 @@ const (
 
 // qa Q&A
 type qa struct {
-	qid int64  // 问题id（id必须是递增的）
-	q   string // 问题内容
-	a   string // 回答内容
+	qid int64  // Question ID (ID must be incremental)
+	q   string // Question content
+	a   string // Answer content
 }
 
 type Message struct {
-	qid     int64  // 问题id或者是合并后的问题id（等于合并问题中最新的问题的id）； 注意：该字段小写非导出（不会被JSON序列化）
+	qid     int64  // Question ID or Question ID after merge
 	Role    Role   `json:"role"`
-	Content string `json:"content"` // 问题内容或者是合并后的问题内容
+	Content string `json:"content"` // Question content or Question content after merge
 }
 
 /* ------------------------------------------------------------------------------------------------------------------ */
@@ -33,7 +33,7 @@ type DialogCTX struct {
 	qaList      []*qa
 	qaMap       *sync.Map // key: qid value: *qa
 	maxQNum     int
-	latestQID   int64 // 最新的 qid
+	latestQID   int64
 }
 
 func NewDialogCTX(nums int, WithHistory bool) *DialogCTX {
@@ -48,7 +48,7 @@ func NewDialogCTX(nums int, WithHistory bool) *DialogCTX {
 	}
 }
 
-// AddQuestion 构建上下文信息链。（此函数并发不安全）
+// AddQuestion Build a context information chain. (concurrency unsafe)"
 func (dCtx *DialogCTX) AddQuestion(question string, sgid int64) []Message {
 	qid := sgid
 	dCtx.latestQID = qid
@@ -61,7 +61,7 @@ func (dCtx *DialogCTX) AddQuestion(question string, sgid int64) []Message {
 		}}
 	}
 
-	// 更新 qaList 和 qaMap
+	// update qaList & qaMap
 	newUint := &qa{qid: qid, q: question}
 	n := len(dCtx.qaList)
 	if _, ok := dCtx.qaMap.Load(qid); ok {
@@ -76,7 +76,7 @@ func (dCtx *DialogCTX) AddQuestion(question string, sgid int64) []Message {
 	}
 	dCtx.qaMap.Store(qid, newUint)
 
-	// 转换为 []Message
+	// format []*qa to []Message
 	msgs := make([]Message, 0, len(dCtx.qaList))
 	for _, qaUint := range dCtx.qaList {
 		msgs = append(msgs,
@@ -94,7 +94,7 @@ func (dCtx *DialogCTX) AddQuestion(question string, sgid int64) []Message {
 	return msgs
 }
 
-// StreamAddAnswer 流式地给最新的问题 添加/追加 答案
+// StreamAddAnswer added/appended answer streamingly
 func (dCtx *DialogCTX) StreamAddAnswer(ansSegment string, sgid int64) error {
 	questionID := sgid
 	if !dCtx.WithHistory {
@@ -102,7 +102,7 @@ func (dCtx *DialogCTX) StreamAddAnswer(ansSegment string, sgid int64) error {
 	}
 	unitAny, ok := dCtx.qaMap.Load(questionID)
 	if !ok {
-		return fmt.Errorf("sgid(%d)对应的qa组合在dCtx.qaMap找不到", sgid)
+		return fmt.Errorf("the QA pair corresponding to sgid(%d) could not be found in dCtx.qaMap", sgid)
 	}
 	dialog := unitAny.(*qa)
 	dialog.a = dialog.a + ansSegment

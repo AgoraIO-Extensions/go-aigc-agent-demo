@@ -1,11 +1,5 @@
 max_life_time = 86400
 
-[filter]
-open = true
-begin_win_size = 10
-end_win_size = 6
-data_win_size = 10
-
 [stt]
 select = "ms"
 
@@ -39,7 +33,6 @@ speech_region = "eastasia"
 set_log = false
 language_check_mode = 0
 specify_language = "zh-CN"
-output_voice = "zh-CN-XiaoxiaoNeural"
 
 [rtc]
 app_id = ""

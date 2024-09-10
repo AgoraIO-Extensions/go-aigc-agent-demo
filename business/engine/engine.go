@@ -38,19 +38,19 @@ func InitEngine() (*Engine, error) {
 
 	// 初始化「rtc」
 	e.rtc = rtc.NewRTC(cfg.RTC.AppID, "", cfg.RTC.ChannelName, cfg.RTC.UserID, cfg.RTC.Region)
-	logger.Info("初始化rtc成功...")
+	logger.Info("RTC initialization succeeded")
 
 	// 初始化「stt」
 	if e.sttFactory, err = stt.NewFactory(cfg.STT.Select, cfg.STT); err != nil {
 		return nil, fmt.Errorf("[stt.NewFactory]%v", err)
 	}
-	logger.Info("初始化stt成功")
+	logger.Info("STT initialization succeeded")
 
 	// 初始化 tts
 	if e.ttsFactory, err = tts.NewFactory(cfg.TTS.Select, 2); err != nil {
 		return nil, fmt.Errorf("初始化tts失败.%v", err)
 	}
-	logger.Info("初始化tts成功...")
+	logger.Info("TTS initialization succeeded")
 
 	// 初始化 [exit]
 	e.exitWrapper = exit.NewExitManager(cfg.StartTime, cfg.MaxLifeTime)
@@ -107,7 +107,7 @@ func (e *Engine) HandlerFilterAudio() {
 		chunk, ok := <-filterAudio
 		if !ok {
 			cancel()
-			logger.Info("[filter] filter输出队列已消费完毕并关闭")
+			logger.Info("[filter] Filter output queue has been consumed and closed.")
 			return
 		}
 
@@ -120,7 +120,7 @@ func (e *Engine) HandlerFilterAudio() {
 				sgid = sid // 新的group
 				sentencelifecycle.DeleteSidIntoRtc(sid - 1)
 			}
-			logger.Info("[stt] 从上游取出sentence音频头", sentencelifecycle.Tag(sid, sgid))
+			logger.Info("[stt] Get the sentence audio header from upstream", sentencelifecycle.Tag(sid, sgid))
 			sentencelifecycle.GroupInst().SetSidToSgid(sid, sgid)
 			sentenceSTTResult := &STTResult{ctx: ctx, sid: sid, sgid: sgid, fullText: make(chan string, 1)}
 			sttResults <- sentenceSTTResult
@@ -150,7 +150,7 @@ func (e *Engine) HandlerSentenceAudio(sid, sgid int64, sentenceAudio <-chan *fil
 
 	sttClient, err := e.sttFactory.CreateSTT(sid)
 	if err != nil {
-		logger.Error("[stt] 获取stt连接实例失败", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+		logger.Error("[stt] Failed to obtain STT connection instance.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
 		return
 	}
 
@@ -161,21 +161,21 @@ func (e *Engine) HandlerSentenceAudio(sid, sgid int64, sentenceAudio <-chan *fil
 		for {
 			r, ok := <-sttResult
 			if !ok {
-				logger.Error("[stt] 理论不可达代码")
+				logger.Error("[stt] Unreachable code")
 				break
 			}
 			if r.Fail {
 				sentenceSTTResult.fullText <- ""
-				logger.Error("[stt] 异步识别结果失败", sentencelifecycle.Tag(sid, sgid))
+				logger.Error("[stt] Asynchronous recognition result failed", sentencelifecycle.Tag(sid, sgid))
 				return
 			}
 			if r.Complete {
 				sentenceSTTResult.fullText <- r.Text
 				if r.Text == "" {
-					logger.Info("[stt] stt返回空字符串", sentencelifecycle.Tag(sid, sgid))
+					logger.Info("[stt] STT returned an empty string", sentencelifecycle.Tag(sid, sgid))
 					return
 				}
-				logger.Info("[stt]<duration> 从stt收到识别文本", slog.Int64("dur", time.Since(sendEnd).Milliseconds()), slog.String("text", r.Text), sentencelifecycle.Tag(sid, sgid))
+				logger.Info("[stt]<duration> Received recognized text from STT.", slog.Int64("dur", time.Since(sendEnd).Milliseconds()), slog.String("text", r.Text), sentencelifecycle.Tag(sid, sgid))
 				break
 			}
 		}
@@ -184,22 +184,22 @@ func (e *Engine) HandlerSentenceAudio(sid, sgid int64, sentenceAudio <-chan *fil
 	for {
 		chunk, ok := <-sentenceAudio
 		if !ok {
-			logger.Error("[stt] 理论不可达代码")
+			logger.Error("[stt] Unreachable code")
 			break
 		}
 		if chunk.Status == filter.SpeakToMute {
 			if dur := time.Since(chunk.Time).Milliseconds(); dur > 10 {
-				logger.Warn("[stt]<duration> 音频chunk在 vad输出 ——> stt输入 的过程耗时>10ms", slog.Int64("dur", dur), sentencelifecycle.Tag(sid, sgid))
+				logger.Warn("[stt]<duration> The audio chunk took more than 10ms from VAD output to STT input.", slog.Int64("dur", dur), sentencelifecycle.Tag(sid, sgid))
 			}
 			sendEnd = time.Now()
 			if err = sttClient.Send(nil, true); err != nil {
-				logger.Error("[stt] 往stt发送 stop指令 标记失败", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+				logger.Error("[stt] Failed to send the stop command to STT.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
 				return
 			}
 			break
 		}
 		if err = sttClient.Send(chunk.Data, false); err != nil {
-			logger.Error("[stt] 往stt发送chunk失败", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+			logger.Error("[stt] Failed to send chunk to STT.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
 			return
 		}
 	}
@@ -210,7 +210,7 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 	for {
 		r, ok := <-sttResults
 		if !ok {
-			logger.Info("[stt] stt已关闭")
+			logger.Info("[stt] STT has been closed.")
 			return
 		}
 		sid, sgid := r.sid, r.sgid
@@ -221,26 +221,26 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 		ctx := r.ctx
 		select {
 		case <-time.After(time.Second * 5):
-			logger.Info("[stt] 等待stt获取识别结果超时5s", sentencelifecycle.Tag(sid, sgid))
+			logger.Info("[stt] Timeout waiting for STT to retrieve recognition result: 5 seconds.", sentencelifecycle.Tag(sid, sgid))
 			continue
 		case sentenceText := <-r.fullText:
 			groupSentencesMerge = groupSentencesMerge + sentenceText
 			if groupSentencesMerge == "" {
-				logger.Info("[stt] 并句后的stt结果为空字符串", sentencelifecycle.Tag(sid, sgid))
+				logger.Info("[stt] STT result is an empty string after concatenation.", sentencelifecycle.Tag(sid, sgid))
 				continue
 			}
-			logger.Info("[stt] 并句后的文本", slog.String("text", groupSentencesMerge), sentencelifecycle.Tag(sid, sgid))
+			logger.Info("[stt] Text after concatenation", slog.String("text", groupSentencesMerge), sentencelifecycle.Tag(sid, sgid))
 		}
 
 		if errors.Is(ctx.Err(), context.Canceled) {
-			logger.Info("[stt] 收集了stt结果后，sentence被打断", sentencelifecycle.Tag(sid, sgid))
+			logger.Info("[stt] After collecting the STT results, the sentence was interrupted.", sentencelifecycle.Tag(sid, sgid))
 			continue
 		}
 
 		segChan, err := e.llm.Ask(ctx, sid, groupSentencesMerge)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				logger.Info("[llm] 请求llm时被打断", slog.Any("msg", err), sentencelifecycle.Tag(sid, sgid))
+				logger.Info("[llm] Interrupted while requesting LLM.", slog.Any("msg", err), sentencelifecycle.Tag(sid, sgid))
 				continue
 			}
 			logger.Error("[llm.Ask]fail", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
@@ -249,7 +249,7 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 
 		ttsClient, err := e.ttsFactory.CreateTTS(sid)
 		if err != nil {
-			logger.Error("[tts] 创建tts客户端实例失败", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+			logger.Error("[tts] Failed to create TTS client instance.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
 			continue
 		}
 
@@ -264,7 +264,7 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 				}
 				ttsClient.Send(ctx, i, seg)
 			case <-ctx.Done():
-				logger.Info("[tts] 往tts发segment的过程被打断", sentencelifecycle.Tag(sid))
+				logger.Info("[tts] The process of sending a segment to TTS was interrupted.", sentencelifecycle.Tag(sid))
 				break LOOP
 			}
 		}
@@ -274,36 +274,36 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 func (e *Engine) SendAudioToRTC(ctx context.Context, audioChan <-chan []byte, sid, sgid int64) {
 	firstSend := true
 quickSend:
-	for i := 0; i < 18; i++ { // 瞬时发送包的个数上限是18个包，除此之外，其他时间段内平均发包速率要保持在1个包/10ms
+	for i := 0; i < 18; i++ { // The instantaneous limit for sending packets is 18 packets; otherwise, the average packet rate must be maintained at 1 packet per 10ms.
 		var chunk []byte
 		var ok bool
 		select {
 		case chunk, ok = <-audioChan:
 			break
 		case <-ctx.Done():
-			logger.Info("[rtc] 在往rtc发送音频时被打断", sentencelifecycle.Tag(sid, sgid))
+			logger.Info("[rtc] Interrupted while sending audio to RTC.", sentencelifecycle.Tag(sid, sgid))
 			return
 		}
 		if !ok {
-			logger.Debug("[rtc] 往rtc发送 音频 完毕", sentencelifecycle.Tag(sid, sgid))
+			logger.Debug("[rtc] Completed sending audio to RTC.", sentencelifecycle.Tag(sid, sgid))
 			return
 		}
 		if firstSend {
 			firstSend = false
 			sentencelifecycle.SetSidIntoRTC(sid)
-			logger.Debug("[rtc] 开始往rtc发送音频", sentencelifecycle.Tag(sid, sgid))
+			logger.Debug("[rtc] Started sending audio to RTC.", sentencelifecycle.Tag(sid, sgid))
 			sentenceGroupBegin := sentencelifecycle.GroupInst().GetInAudioEndTimeInOneSentenceGroup(sgid)
 			if sentenceGroupBegin == nil {
-				logger.Error("根据sgid获取 sentencelifecycle group 开始时间失败", sentencelifecycle.Tag(sid, sgid))
+				logger.Error("Failed to retrieve the start time of the sentence lifecycle group based on SGID.", sentencelifecycle.Tag(sid, sgid))
 			} else {
 				sentencelifecycle.GroupInst().DeleteInAudioEndTimeInOneSentenceGroup(sgid)
 				dur := time.Now().Sub(*sentenceGroupBegin)
-				logger.Info("[sentence]<duration> stt发送音频结束时刻 ——> 往rtc发送第一个chunk", sentencelifecycle.Tag(sid, sgid), slog.Int64("dur", dur.Milliseconds()))
+				logger.Info("[sentence]<duration> STT audio end time ——> Sending the first chunk to RTC", sentencelifecycle.Tag(sid, sgid), slog.Int64("dur", dur.Milliseconds()))
 			}
 		}
 
 		if err := e.rtc.SendPcm(chunk); err != nil {
-			logger.Error("[rtc] 往rtc发送音频报错", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+			logger.Error("[rtc] Failed to send audio to RTC.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
 			return
 		}
 	}
@@ -314,8 +314,8 @@ quickSend:
 	for {
 		time.Sleep(time.Millisecond * 50)
 		shouldSendCount = int(time.Since(firstSendTime).Milliseconds())/10 - sendCount
-		if shouldSendCount > 18 { // 如果下面的（<-audioChan）操作阻塞了很久（>=140ms），那么shouldSendCount会>18：(140+50)/10=19>18
-			logger.Info("[rtc] 阻塞时间过长，将重新进行快速发送", sentencelifecycle.Tag(sid, sgid))
+		if shouldSendCount > 18 { // If the operation below (<-audioChan) is blocked for a long time (>=140ms), then shouldSendCount will be greater than 18：(140+50)/10=19>18
+			logger.Info("[rtc] The blocking time is too long; executing quickSend.", sentencelifecycle.Tag(sid, sgid))
 			goto quickSend
 		}
 		for i := 0; i < shouldSendCount; i++ {
@@ -326,19 +326,19 @@ quickSend:
 			case chunk, ok = <-audioChan:
 				break
 			case <-ctx.Done():
-				logger.Info("[rtc] 在往rtc发送音频时被打断", sentencelifecycle.Tag(sid, sgid))
+				logger.Info("[rtc] Interrupted while sending audio to RTC.", sentencelifecycle.Tag(sid, sgid))
 				return
 			}
 			if !ok {
-				logger.Info("[rtc] 往rtc发送 音频 完毕", sentencelifecycle.Tag(sid, sgid))
+				logger.Info("[rtc] Audio sent to RTC completed", sentencelifecycle.Tag(sid, sgid))
 				return
 			}
 
 			if dur := time.Since(readStart); dur > time.Millisecond*10 {
-				logger.Warn("[rtc] 往rtc发送音频时，阻塞在获取音频的逻辑>10ms", slog.Int64("dur", dur.Milliseconds()), sentencelifecycle.Tag(sid, sgid))
+				logger.Warn("[rtc] While sending audio to RTC, blocking in audio retrieval for more than 10ms.", slog.Int64("dur", dur.Milliseconds()), sentencelifecycle.Tag(sid, sgid))
 			}
 			if err := e.rtc.SendPcm(chunk); err != nil {
-				logger.Error("[rtc] 往rtc发送音频报错", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+				logger.Error("[rtc] Failed to send audio to RTC.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
 				return
 			}
 			sendCount++

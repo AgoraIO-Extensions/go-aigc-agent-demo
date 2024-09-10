@@ -7,14 +7,14 @@ import (
 )
 
 var regionMap = map[string]uint{
-	"cn": 0x00000001, // 中国大陆
-	"na": 0x00000002, // 北美
-	"eu": 0x00000004, // 欧洲
-	//"as":   0x00000008, // 亚洲（不包括中国大陆）
-	"ap":   0x00000008, // 亚太
-	"jp":   0x00000010, // 日本
-	"in":   0x00000020, // 印度
-	"glob": 0xFFFFFFFF, // 全球（默认值）
+	"cn": 0x00000001, // Mainland China
+	"na": 0x00000002, // North America
+	"eu": 0x00000004, // Europe
+	//"as":   0x00000008, // Asia (excluding Mainland China)
+	"ap":   0x00000008, // Asia-Pacific
+	"jp":   0x00000010, // Japan
+	"in":   0x00000020, // India
+	"glob": 0xFFFFFFFF, // Global (default value)
 }
 
 type InitParams struct {

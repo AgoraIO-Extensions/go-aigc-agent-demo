@@ -15,11 +15,11 @@ func (cli *Client) StreamAsk(ctx context.Context, text string) (io.ReadCloser, e
 	bodyContent["format"] = "pcm"
 	bodyContent["sample_rate"] = 16000
 	bodyContent["voice"] = "zhitian_emo"
-	// volume 音量，范围是0~100，可选，默认50。
+	// volume: 0~100，default:50。
 	bodyContent["volume"] = 50
-	// speech_rate 语速，范围是-500~500，可选，默认是0。
+	// speech_rate: -500~500，default:0。
 	bodyContent["speech_rate"] = 0
-	// pitch_rate 语调，范围是-500~500，可选，默认是0。
+	// pitch_rate: -500~500，default:0。
 	bodyContent["pitch_rate"] = 0
 
 	resp, err := cli.client.JSONPost(ctx, sa.urlPath, bodyContent, nil)
@@ -28,15 +28,15 @@ func (cli *Client) StreamAsk(ctx context.Context, text string) (io.ReadCloser, e
 	}
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ali-tts服务端返回错误, statuscode:%d, err:%s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("ali-tts server returned an error, statuscode:%d, err:%s", resp.StatusCode, string(body))
 	}
 
 	contentType := resp.Header.Get("Content-Type")
 	if contentType == "audio/mpeg" {
 		return resp.Body, nil
 	}
-	// ContentType 为 null 或者为 "application/json"
+	// ContentType is "null" or "application/json"
 	statusCode := resp.StatusCode
 	body, _ := io.ReadAll(resp.Body)
-	return nil, fmt.Errorf("ali-tts服务端返回错误, statuscode:%d, err:%s", statusCode, string(body))
+	return nil, fmt.Errorf("ali-tts server returned an error, statuscode:%d, err:%s", statusCode, string(body))
 }

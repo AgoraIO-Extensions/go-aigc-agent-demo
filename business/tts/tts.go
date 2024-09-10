@@ -28,7 +28,7 @@ func NewFactory(vendor config.TTSSelect, concurrence int) (*Factory, error) {
 	case config.AliTTS, config.MsTTS:
 		return &Factory{Vendor: vendor, concurrence: concurrence}, nil
 	default:
-		return nil, fmt.Errorf("不支持vendor参数:%s", vendor)
+		return nil, fmt.Errorf("[tts] incorrect value for the vendor parameter:%s", vendor)
 	}
 }
 
@@ -47,6 +47,6 @@ func (f *Factory) CreateTTS(sid int64) (TTS, error) {
 		logger.Debug("[tts]<duration> ms.NewTTS", slog.Int64("dur", time.Since(start).Milliseconds()), sentencelifecycle.Tag(sid))
 		return msTTS, nil
 	default:
-		return nil, fmt.Errorf("不支持vendor参数:%s", f.Vendor)
+		return nil, fmt.Errorf("incorrect value for the vendor parameter:%s", f.Vendor)
 	}
 }

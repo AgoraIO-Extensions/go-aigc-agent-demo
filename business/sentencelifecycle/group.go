@@ -40,9 +40,9 @@ func (g *Groups) DeleteSidToSgid(sid int64) {
 	g.sidTosgid.Delete(sid)
 }
 
-/* ---------------------------------------------- sgid ——> sentencelifecycle group内输入音频的结束时间 ---------------------------------------------- */
+/* ---------------------------------------------- sgid —> end time of input audio within the SentenceLifecycle group ---------------------------------------------- */
 
-// StoreInAudioEndTimeInOneSentenceGroup 存储一个sentence group中，来自rtc输入音频的最后一个chunk的接收时间
+// StoreInAudioEndTimeInOneSentenceGroup Store the reception time of the last chunk of input audio from RTC within a sentence group
 func (g *Groups) StoreInAudioEndTimeInOneSentenceGroup(sgid int64, startTime time.Time) {
 	g.sgidToStartTime[sgid] = &startTime
 }

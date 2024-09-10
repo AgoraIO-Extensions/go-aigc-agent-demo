@@ -23,10 +23,10 @@ func NewSTT(sid int64, cfg *Config) (*STT, error) {
 
 func (stt *STT) Send(chunk []byte, end bool) error {
 	if end {
-		ready, err := stt.conn.nlsST.Stop() // 通知服务端语音发送完毕，之后服务端会回调 onSentenceEnd 函数
-		logger.Info("[stt] 停止推流", slog.Int64("sid", stt.SID))
+		ready, err := stt.conn.nlsST.Stop() // Notify the server that the voice has been sent; thereafter, the server will call the onSentenceEnd function.
+		logger.Info("[stt] Stop pushing stream", slog.Int64("sid", stt.SID))
 		if err != nil {
-			stt.conn.nlsST.Shutdown() // 强制停止实时语音识别
+			stt.conn.nlsST.Shutdown() // Forcefully stop real-time speech recognition.
 			return fmt.Errorf("[nlsST.Stop]%v", err)
 		}
 		go func(sid int64) {

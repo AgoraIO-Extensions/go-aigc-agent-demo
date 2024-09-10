@@ -31,23 +31,23 @@ func NewLLM(vendorName config.ModelSelect, prompt string, cfg *config.LLM) (*LLM
 		dCTX = dialogctx.NewDialogCTX(cfg.ChatGPT4o.DialogNums, cfg.WithHistory)
 		client = NewChatGPT(cfg.ChatGPT4o.Model)
 	default:
-		return nil, fmt.Errorf("vendorName传参错误:%s", vendorName)
+		return nil, fmt.Errorf("vendorName parameter is incorrect:%s", vendorName)
 	}
 	return &LLM{prompt: prompt, dCTX: dCTX, streamClient: client}, nil
 }
 
 func (l *LLM) Ask(ctx context.Context, sid int64, question string) (<-chan string, error) {
 	sgid := sentencelifecycle.GroupInst().GetSgidBySid(sid)
-	msgs := l.dCTX.AddQuestion(question, sgid) // 构建并返回 当前的 上下文信息链
+	msgs := l.dCTX.AddQuestion(question, sgid) // Build and return the current context information chain.
 	if l.prompt != "" {
 		msgs = append([]dialogctx.Message{{Role: dialogctx.SYSTEM, Content: l.prompt}}, msgs...)
 	}
-	logger.Info("[llm] 带上下文的提问", slog.Any("dialog_ctx", msgs), sentencelifecycle.Tag(sid))
+	logger.Info("[llm] question with dialog context", slog.Any("dialog_ctx", msgs), sentencelifecycle.Tag(sid))
 	segChan, err := l.streamClient.StreamAsk(ctx, sid, msgs)
 	if err != nil {
 		return nil, fmt.Errorf("[streamAsk]%w", err)
 	}
-	logger.Info("[llm] llm请求返回响应头", sentencelifecycle.Tag(sid))
+	logger.Info("[llm] Return response headers for LLM requests", sentencelifecycle.Tag(sid))
 
 	segChanCopy := make(chan string, 1000)
 	go func() {
@@ -60,15 +60,18 @@ func (l *LLM) Ask(ctx context.Context, sid int64, question string) (<-chan strin
 				}
 				segChanCopy <- seg
 				/*
-					这里之所以流式地将answer追加到dCTX（而不是等全部返回后一次性添加到dCTX），是因为在被「并句」的时候，当前已经返
-					回的内容可能已经被用户听到了，用户的下一句话可能是基于这部分已返回的内容进行提问的，所以必须将这部分answer及时地添加到dCtx中
+					The reason for appending the answer to dCTX in a streaming manner (rather than adding it all at once
+					after the entire response is returned) is that when a response is 'completed' (i.e., the sentence is
+					finished), the content already returned might have been heard by the user. The user's next question
+					might be based on the content that has already been returned, so it is necessary to add this part of
+					the answer to dCTX in a timely manner.
 				*/
 				if err = l.dCTX.StreamAddAnswer(seg, sgid); err != nil {
-					logger.Error("[llm] 流式追加回答失败", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+					logger.Error("[llm] Streaming append of the answer failed.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
 					return
 				}
 			case <-ctx.Done():
-				logger.Info("[llm] 流式读取llm返回文本时被打断", sentencelifecycle.Tag(sid))
+				logger.Info("[llm] Interrupted while reading the LLM's returned text in a streaming manner.", sentencelifecycle.Tag(sid))
 				return
 			}
 		}

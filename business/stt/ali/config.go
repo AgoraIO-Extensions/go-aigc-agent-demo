@@ -41,7 +41,7 @@ func Init(url, appkey, token string) (*Config, error) {
 
 	pool, err := initConnPool(5, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("[initConnPool]ali-stt初始化连接池失败.%v", err)
+		return nil, fmt.Errorf("[initConnPool]Failed to initialize the connection pool for ali-stt.%v", err)
 	}
 	cfg.connPool = pool
 

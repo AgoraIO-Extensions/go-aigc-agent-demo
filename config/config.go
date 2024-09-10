@@ -11,7 +11,7 @@ import (
 
 type logConfig struct {
 	File  string `toml:"file"`
-	Level string `toml:"level"` // 只有指定了file值才会生效
+	Level string `toml:"level"`
 }
 
 /* --------------------------------------------------  rtc  --------------------------------------------------------- */
@@ -24,25 +24,15 @@ type rtc struct {
 	OpenMsgReturn bool   `toml:"open_msg_return"`
 }
 
-/* -------------------------------------------------  filer  -------------------------------------------------------- */
-
-type Filter struct {
-	Open         bool `toml:"open"`
-	BeginWinSize int  `toml:"begin_win_size"`
-	EndWinSize   int  `toml:"end_win_size"`
-	DataWinSize  int  `toml:"data_win_size"` // 包含了 beginWinSize
-}
-
 /* ------------------------------------------------  stt/tts  ------------------------------------------------------- */
 
 type msSTT struct {
 	SpeechKey              string   `toml:"speech_key"`
 	SpeechRegion           string   `toml:"speech_region"`
-	LanguageCheckMode      int      `toml:"language_check_mode"`       // 语言检测模式
-	AutoAudioCheckLanguage []string `toml:"auto_audio_check_language"` // 自动识别音频语种范围
-	SpecifyLanguage        string   `toml:"specify_language"`          // 指定的音频识别语种
-	SetLog                 bool     `toml:"set_log"`                   // 记录speechsdk中的stt执行的信息日志
-	ResultQueueSize        int      `toml:"result_queue_size"`         // stt返回文本的缓冲队列长度
+	LanguageCheckMode      int      `toml:"language_check_mode"`       // Language detection mode
+	AutoAudioCheckLanguage []string `toml:"auto_audio_check_language"` // Automatically detect the range of audio languages
+	SpecifyLanguage        string   `toml:"specify_language"`          // Specified audio recognition language
+	SetLog                 bool     `toml:"set_log"`                   // Whether to enable MS-SDK logging
 }
 
 type aliSTT struct {
@@ -73,16 +63,13 @@ type STT struct {
 	Ali    aliSTT    `toml:"ali"`
 }
 
-type SpeechSynthesisOutputFormat string
-
 type msTTS struct {
-	SpeechKey                   string                      `toml:"speech_key"`
-	SpeechRegion                string                      `toml:"speech_region"`
-	SetLog                      bool                        `toml:"set_log"`
-	LanguageCheckMode           int                         `toml:"language_check_mode"`
-	SpecifyLanguage             string                      `toml:"specify_language"`               // 输出音频的语种. 参考链接：https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts
-	OutputVoice                 string                      `toml:"output_voice"`                   // 输出音频的语种+口音. 参考链接：同上链接
-	SpeechSynthesisOutputFormat SpeechSynthesisOutputFormat `toml:"speech_synthesis_output_format"` // 输出音频格式
+	SpeechKey         string `toml:"speech_key"`
+	SpeechRegion      string `toml:"speech_region"`
+	SetLog            bool   `toml:"set_log"`
+	LanguageCheckMode int    `toml:"language_check_mode"`
+	SpecifyLanguage   string `toml:"specify_language"` // Output audio language. Reference link: https://learn.microsoft.com/zh-cn/azure/ai-services/speech-service/language-support?tabs=tts
+	OutputVoice       string `toml:"output_voice"`     // Output audio language and accent. Reference link: Same as above
 }
 
 type aliTTS struct {
@@ -150,7 +137,7 @@ type ChatGPT struct {
 }
 
 type LLM struct {
-	ModelSelect ModelSelect `toml:"model_select"` // 枚举值没定义自定义类型是因为flag解析命令行参数时无法使用自定义类型
+	ModelSelect ModelSelect `toml:"model_select"`
 	WithHistory bool        `toml:"with_history"`
 	ClauseMode  ClauseMode  `toml:"clause_mode"`
 	Prompt      Prompt      `toml:"prompt"`
@@ -163,10 +150,9 @@ type LLM struct {
 var config *Config
 
 type Config struct {
-	StartTime   int64     // aigc-worker任务启动时间(unix s)
-	MaxLifeTime int64     `toml:"max_life_time"` // 最大生命周期（s）
+	StartTime   int64
+	MaxLifeTime int64     `toml:"max_life_time"`
 	RTC         rtc       `toml:"rtc"`
-	Filter      Filter    `toml:"filter"`
 	STT         STT       `toml:"stt"`
 	TTS         TTS       `toml:"tts"`
 	Log         logConfig `toml:"log"`
@@ -177,7 +163,6 @@ func Inst() *Config {
 	return config
 }
 
-// Init 基于配置文件初始化Config
 func Init(filePath string) error {
 	config = &Config{
 		StartTime: time.Now().Unix(),

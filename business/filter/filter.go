@@ -9,7 +9,7 @@ import (
 
 type Chunk struct {
 	Sid    int64
-	Data   []byte // 长度是320字节
+	Data   []byte // The length is 320 bytes.
 	Status ResultCode
 	Time   time.Time
 }
@@ -31,7 +31,7 @@ func NewFilter(FirstSid int64) *Filter {
 func (f *Filter) OnRcvRTCAudio(con *agoraservice.RtcConnection, channelId string, uid string, inFrame *agoraservice.PcmAudioFrame) {
 	cks, status, err := f.vad.ProcessPcmFrame(inFrame)
 	if err != nil {
-		logger.Info("[vad] 处理音频失败", slog.Any("err", err))
+		logger.Info("[vad] Failed to process audio.", slog.Any("err", err))
 		return
 	}
 
@@ -41,7 +41,7 @@ func (f *Filter) OnRcvRTCAudio(con *agoraservice.RtcConnection, channelId string
 		return
 	case MuteToSpeak:
 		f.sid++
-		logger.Info("[filter] 收到sentence音频头", slog.Int64("sid", f.sid))
+		logger.Info("[filter] Received sentence audio header.", slog.Int64("sid", f.sid))
 		for i, ck := range cks {
 			state := MuteToSpeak
 			if i != 0 {
@@ -64,14 +64,14 @@ func (f *Filter) OnRcvRTCAudio(con *agoraservice.RtcConnection, channelId string
 			}
 		}
 	case SpeakToMute:
-		logger.Info("[filter] 收到sentence音频尾", slog.Int64("sid", f.sid))
+		logger.Info("[filter] Received sentence audio tail.", slog.Int64("sid", f.sid))
 		f.output <- &Chunk{
 			Sid:    f.sid,
 			Status: SpeakToMute,
 			Time:   now,
 		}
 	default:
-		logger.Error("[filter] This code should never be executed", slog.Any("status", status))
+		logger.Error("[filter] Unreachable code", slog.Any("status", status))
 	}
 	return
 }

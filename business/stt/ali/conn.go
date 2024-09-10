@@ -9,7 +9,7 @@ import (
 
 type conn struct {
 	nlsST   *nls.SpeechTranscription
-	expTime time.Time // 连接过期截止时间 10s（取8s）
+	expTime time.Time // Connection expiration deadline: 10 seconds (set to 8 seconds)
 
 	sid         int64
 	result      chan *common.Result

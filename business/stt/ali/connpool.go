@@ -10,7 +10,7 @@ import (
 type connPool struct {
 	cfg      *Config
 	pool     chan *conn
-	poolSize int // 连接池最大空闲连接数，建议取值5
+	poolSize int // Maximum number of idle connections in the connection pool, recommended value: 5
 }
 
 func initConnPool(size int, cfg *Config) (*connPool, error) {
@@ -26,7 +26,7 @@ func initConnPool(size int, cfg *Config) (*connPool, error) {
 			defer wg.Done()
 			c, err := newConn(cfg, 0)
 			if err != nil {
-				logger.Error("[stt]ali-stt初始化连接池失败", slog.Any("err", err), slog.Int("i", i))
+				logger.Error("[stt]Failed to initialize the connection pool for ali-stt", slog.Any("err", err), slog.Int("i", i))
 			}
 			p.pool <- c
 		}(i)
@@ -43,7 +43,7 @@ func (p *connPool) generateConn() {
 		for range ticker {
 			n := len(p.pool)
 			if n < 2 {
-				logger.Info("[stt] ali-stt 连接池中的连接数<2", slog.Int("conn_num", n))
+				logger.Info("[stt] ali-stt Number of connections in the connection pool<2", slog.Int("conn_num", n))
 			}
 			if n == p.poolSize {
 				<-p.pool
@@ -58,12 +58,12 @@ func (p *connPool) generateConn() {
 					start := time.Now()
 					c, err := newConn(p.cfg, 0)
 					if err != nil {
-						logger.Error("[stt]ali-stt异步生成连接失败", slog.Any("err", err))
+						logger.Error("[stt]Failed to asynchronously create connection for ali-stt", slog.Any("err", err))
 						return
 					}
 					dur := time.Now().Sub(start)
 					if dur > time.Second {
-						logger.Info("[stt]ali-stt 连接池建立连接耗时>1s", slog.Int64("dur", dur.Milliseconds()))
+						logger.Info("[stt]ali-stt Connection establishment time>1s", slog.Int64("dur", dur.Milliseconds()))
 					}
 					p.pool <- c
 				}()

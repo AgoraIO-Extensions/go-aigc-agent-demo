@@ -5,17 +5,17 @@ import (
 )
 
 type Segment struct {
-	AudioChan chan []byte // 每个chunk 320 bytes
+	AudioChan chan []byte // 320 bytes per chunk
 	Sid       int64
 	ID        int
 	Text      string
-	SendTime  time.Time // 发送到tts的时间
+	SendTime  time.Time // time sent to TTS
 }
 
 type Sentence struct {
 	ID        int64
 	SegChan   chan *Segment
-	AudioChan chan []byte // 每个chunk 320 bytes
+	AudioChan chan []byte // 320 bytes per chunk
 }
 
 func (s *Sentence) mergeSegments() {

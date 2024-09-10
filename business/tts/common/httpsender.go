@@ -28,11 +28,11 @@ func NewHttpSender(sid int64, con int, askFunc StreamAsk) *HttpSender {
 			AudioChan: make(chan []byte, 1000),
 		},
 	}
-	sender.sentence.mergeSegments() // 异步地合并 Sentence下各个segment的audio
+	sender.sentence.mergeSegments() // Asynchronously merge the audio of each segment under the Sentence
 	return sender
 }
 
-// Send 将segment同步入队后，再异步并发地请求tts
+// Send After synchronously enqueuing the segment, asynchronously and concurrently request TTS
 func (h *HttpSender) Send(ctx context.Context, segID int, text string) {
 	if text == "" {
 		close(h.sentence.SegChan)
@@ -60,18 +60,18 @@ func (h *HttpSender) sendSeg(ctx context.Context, seg *Segment) {
 	defer close(seg.AudioChan)
 
 	seg.SendTime = time.Now()
-	logger.Debug("[tts]发送segment给tts", slog.Int64("sid", seg.Sid), slog.String("seg", seg.Text), slog.Int("seg_id", seg.ID))
+	logger.Info("[tts] Send segment to TTS", slog.Int64("sid", seg.Sid), slog.String("seg", seg.Text), slog.Int("seg_id", seg.ID))
 	rc, err := h.askFunc(ctx, seg.Text)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			logger.Info("[tts] http请求被打断", slog.String("msg", err.Error()))
+			logger.Info("[tts] HTTP request was interrupted", slog.String("msg", err.Error()))
 			return
 		}
-		logger.Error("[tts] http流式请求失败", slog.Any("err", err))
+		logger.Error("[tts] Failed to request tts", slog.Any("err", err))
 		return
 	}
 	defer rc.Close()
-	logger.Debug("[tts]收到响应头和status_code", slog.Int64("sid", seg.Sid), slog.String("seg", seg.Text), slog.Int("seg_id", seg.ID))
+	logger.Info("[tts]Get HTTP response header and statusCode", slog.Int64("sid", seg.Sid), slog.String("seg", seg.Text), slog.Int("seg_id", seg.ID))
 
 	var (
 		buf         = make([]byte, 320)
@@ -85,10 +85,10 @@ func (h *HttpSender) sendSeg(ctx context.Context, seg *Segment) {
 		}
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				logger.Info("[tts] 读取http返回流被打断", slog.String("msg", err.Error()))
+				logger.Info("[tts] Reading the HTTP response stream was interrupted", slog.String("msg", err.Error()))
 				return
 			}
-			logger.Error("[tts] 读取http返回流失败", slog.Any("err", err))
+			logger.Error("[tts] Failed to read HTTP response stream", slog.Any("err", err))
 			return
 		}
 		alreadyRead += n
@@ -97,7 +97,7 @@ func (h *HttpSender) sendSeg(ctx context.Context, seg *Segment) {
 		}
 		if chunkIndex == 0 {
 			segDur := time.Since(seg.SendTime)
-			logger.Info("[tts]<duration>收到一个segment中的首个chunk", sentencelifecycle.Tag(seg.Sid), slog.Int("seg_id", seg.ID),
+			logger.Info("[tts]<duration> Received the first chunk of a segment", sentencelifecycle.Tag(seg.Sid), slog.Int("seg_id", seg.ID),
 				slog.String("seg", seg.Text), slog.Int64("dur", segDur.Milliseconds()))
 		}
 		seg.AudioChan <- buf

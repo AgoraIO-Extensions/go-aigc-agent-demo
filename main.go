@@ -22,32 +22,32 @@ func main() {
 	fmt.Println("buildTimeStamp:", buildTimeStamp)
 	var err error
 
-	// 加载配置文件
+	// load config
 	if err = config.Init("./config/chat-robot.toml"); err != nil {
 		panic(fmt.Sprintf("基于配置文件初始化配置失败:%s", err))
 	}
 
 	cfg := config.Inst()
 
-	// 初始化日志
+	// init log
 	logger.Init(cfg.Log.File, cfg.Log.Level, map[any]any{"uuid": workerid.UUID})
 	logger.Info(fmt.Sprintf("buildTimeStamp:%s, config:%+v", buildTimeStamp, cfg))
 
 	if err = initDependency(cfg); err != nil {
 		logger.Error(err.Error(), slog.String("func", "initDependency"))
-		fmt.Printf("InitDependency执行失败: %v", err)
+		fmt.Printf("InitDependency execution failed: %v", err)
 		os.Exit(1)
 	}
 
-	// 初始化 engine
+	// init engine
 	em, err := engine.InitEngine()
 	if err != nil {
 		logger.Error(err.Error(), slog.String("func", "engine.InitEngine"))
 		os.Exit(1)
 	}
-	logger.Info("EngineManager初始化成功...")
+	logger.Info("EngineManager initialized successfully...")
 
-	// 启动 engine
+	// start engine
 	if err = em.Run(); err != nil {
 		logger.Error("fail to ")
 	}
@@ -56,11 +56,11 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
 
-	logger.Info(fmt.Sprintf("收到退出信号%v，即将退出", s))
+	logger.Info(fmt.Sprintf("Received exit signal %v, exiting soon", s))
 	return
 }
 
-// initDependency 初始化各种依赖（pkg/client包中的全局变量）
+// initDependency Initialize various dependencies(global variables in the pkg/client package)
 func initDependency(cfg *config.Config) error {
 	if err := speech.InitToken(cfg.STT.Ali.AKID, cfg.STT.Ali.AKKey); err != nil {
 		return fmt.Errorf("[speech.InitToken]%v", err)
@@ -70,7 +70,7 @@ func initDependency(cfg *config.Config) error {
 		return fmt.Errorf("[alitts.Init]%v", err)
 	}
 
-	// 初始化「llm」
+	// init「llm」
 	switch cfg.LLM.ModelSelect {
 	case config.LLMQwen:
 		if err := qwenCli.Init(cfg.LLM.QWen.URL, cfg.LLM.QWen.ApiKey); err != nil {

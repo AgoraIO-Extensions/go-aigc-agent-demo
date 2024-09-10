@@ -10,19 +10,19 @@ import (
 type LanguageCheckMode int
 
 const (
-	AutoCheck LanguageCheckMode = 0 // 自动检测模式
-	Specify   LanguageCheckMode = 1 // 指定语言模式
+	AutoCheck LanguageCheckMode = 0 // Automatic language detection mode
+	Specify   LanguageCheckMode = 1 // Specify language mode
 )
 
-// Config stt初始化配置
+// Config stt initialization configuration
 type Config struct {
 	speechKey    string
 	speechRegion string
 	//inputFormat
-	setLog                 bool // 是否启用微软sdk的日志
+	setLog                 bool // Whether to enable Microsoft SDK logging
 	languageCheckMode      LanguageCheckMode
-	autoAudioCheckLanguage []string // 自动音频检测语种范围。例如：汉语、英文、日语为：{"zh-CN", "en-US", "ja-JP"}
-	specifyLanguage        string   // 指定的输入音频的语言。例如：汉语为："zh-CN"
+	autoAudioCheckLanguage []string // Automatic audio language detection range. For example：{"zh-CN", "en-US", "ja-JP"}
+	specifyLanguage        string   // Language of the specified input audio. For example,Chinese: "zh-CN"
 }
 
 func NewConfig(setLog bool, languageCheckMode int, autoAudioCheckLanguage []string, specifyLanguage string, speechKey string, speechRegion string) *Config {
@@ -57,7 +57,7 @@ func NewSTT(sid int64, cfg *Config) (*STT, error) {
 
 func (stt *STT) Send(chunk []byte, end bool) error {
 	if end {
-		stt.client.sttInputStream.CloseStream() // 会触发 sessionStoppedHandler
+		stt.client.sttInputStream.CloseStream() // will trigger sessionStoppedHandler
 		logger.Info("[stt] 停止推流", slog.Int64("sid", stt.SID))
 		return nil
 	}

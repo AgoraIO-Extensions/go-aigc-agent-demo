@@ -52,12 +52,12 @@ type payload struct {
 
 func (c *conn) onTaskFailed(jsonStr string, _ interface{}) {
 	if c.sid != 0 {
-		logger.Info(fmt.Sprintf("onTaskFailed:%s", jsonStr), slog.Int64("sid", c.sid))
+		logger.Info(fmt.Sprintf("[onTaskFailed]:%s", jsonStr), slog.Int64("sid", c.sid))
 		c.result <- &common.Result{Fail: true}
 	}
 }
 
-// 该函数由 Start 函数触发
+// onStarted This function is triggered by the Start function
 func (c *conn) onStarted(jsonStr string, _ interface{}) {
 	//logger.Inst().Info(fmt.Sprintf("onStarted:%s", text), slog.Int64("sid", c.sid))
 }
@@ -66,7 +66,7 @@ func (c *conn) onSentenceBegin(jsonStr string, _ interface{}) {
 	//logger.Inst().Info(fmt.Sprintf("onSentenceBegin:%s", text), slog.Int64("sid", c.sid))
 }
 
-// 返回过程中的识别结果
+// onResultChanged Return the Intermediate recognition result
 func (c *conn) onResultChanged(jsonStr string, _ interface{}) {
 	var err error
 	defer func() {
@@ -77,32 +77,32 @@ func (c *conn) onResultChanged(jsonStr string, _ interface{}) {
 
 	resp := response{}
 	if err = json.Unmarshal([]byte(jsonStr), &resp); err != nil {
-		logger.Error("ali stt返回文本json unmarshal失败", slog.Any("err", err), slog.Int64("sid", c.sid))
+		logger.Error("[onResultChanged] Failed to unmarshal the text JSON returned by ali-stt", slog.Any("err", err), slog.Int64("sid", c.sid))
 		return
 	}
 	text := resp.Payload.Result
-	logger.Debug("[stt] onResultChanged 识别到文本中间值", slog.Int64("sid", c.sid), slog.String("text", text))
+	logger.Info("[onResultChanged] Intermediate values", slog.Int64("sid", c.sid), slog.String("text", text))
 	c.result <- &common.Result{Text: text}
 }
 
 /*
-onSentenceEnd: 返回最终的识别结果
-函数触发条件：
- 1. 要么音频静默时长达到 MaxSentenceSilence 值，服务端触发。
- 2. 要么客户端主动执行stop函数触发。
+onSentenceEnd: Return the final recognition result
+Function trigger conditions：
+ 1. Either when the audio silence duration reaches the MaxSentenceSilence value, the server triggers it.
+ 2. Or when the client actively executes the stop function to trigger it.
 
-注意：如果发完一句话之后不发静音包也不主动调用Stop函数，那么这个函数永远不会被触发
+Note: If no silence packets are sent after completing a sentence and the stop function is not actively called, this function will never be triggered.
 */
 func (c *conn) onSentenceEnd(jsonStr string, _ interface{}) {
 	resp := response{}
 	if err := json.Unmarshal([]byte(jsonStr), &resp); err != nil {
-		logger.Error("ali stt返回文本json unmarshal失败", slog.Any("err", err), slog.Int64("sid", c.sid))
+		logger.Error("[onSentenceEnd]Failed to unmarshal the text JSON returned by STT", slog.Any("err", err), slog.Int64("sid", c.sid))
 		c.result <- &common.Result{Fail: true}
 		return
 	}
 	c.returnedAns = true
 	text := resp.Payload.Result
-	logger.Info("[stt] onSentenceEnd 识别到文本", sentencelifecycle.Tag(c.sid), slog.String("text", text))
+	logger.Info("[onSentenceEnd] recognition result", sentencelifecycle.Tag(c.sid), slog.String("text", text))
 	c.result <- &common.Result{Text: text, Complete: true}
 	close(c.result)
 }
