@@ -23,7 +23,7 @@ func main() {
 	var err error
 
 	// 加载配置文件
-	if err = config.Init("./config/local.toml"); err != nil {
+	if err = config.Init("./config/chat-robot.toml"); err != nil {
 		panic(fmt.Sprintf("基于配置文件初始化配置失败:%s", err))
 	}
 

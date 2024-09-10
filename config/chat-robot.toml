@@ -7,7 +7,7 @@ end_win_size = 6
 data_win_size = 10
 
 [stt]
-select = "ali"
+select = "ms"
 
 [stt.ali]
 url = "wss://nls-gateway.cn-shanghai.aliyuncs.com/ws/v1"
@@ -15,8 +15,17 @@ akid = ""
 akkey = ""
 appkey = ""
 
+[stt.ms]
+speech_key = "59e03d7b53714f4d8595d7590f0854a2"
+speech_region = "eastasia"
+language_check_mode = 0
+auto_audio_check_language = ["zh-CN", "en-US", "ja-JP"]
+specify_language = "zh-CN"
+set_log = false
+result_queue_size = 1000
+
 [tts]
-select = "ali"
+select = "ms"
 
 [tts.ali]
 url = "https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/tts"
@@ -24,9 +33,17 @@ akid = ""
 akkey = ""
 appkey = ""
 
+[tts.ms]
+speech_key = ""
+speech_region = "eastasia"
+set_log = false
+language_check_mode = 0
+specify_language = "zh-CN"
+output_voice = "zh-CN-XiaoxiaoNeural"
+
 [rtc]
-app_id = "857c6564e7db469387eb44205f287b9a"
-channel_name = "test_channel"
+app_id = ""
+channel_name = "local-1"
 user_id = "0"
 region = "glob"
 
@@ -35,7 +52,7 @@ file = "./demo.log"
 level = "debug"
 
 [llm]
-model_select = "qwen"
+model_select = "chat-gpt4o"
 with_history = true
 clause_mode = "punctuation"
 
@@ -46,4 +63,10 @@ output_language = ["zh-CN"]
 model = "qwen-plus"
 url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
 apikey = ""
+dialog_nums = 10
+
+[llm.chat_gpt4o]
+key = ""
+model = "gpt-4o-west-us"
+end_point = "https://gpt-4o-west-us.openai.azure.com/"
 dialog_nums = 10
