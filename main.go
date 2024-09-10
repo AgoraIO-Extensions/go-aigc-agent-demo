@@ -24,7 +24,7 @@ func main() {
 
 	// load config
 	if err = config.Init("./config/chat-robot.toml"); err != nil {
-		panic(fmt.Sprintf("基于配置文件初始化配置失败:%s", err))
+		panic(fmt.Sprintf("Failed to initialize configuration based on the configuration file:%s", err))
 	}
 
 	cfg := config.Inst()

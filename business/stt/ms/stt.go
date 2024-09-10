@@ -58,7 +58,7 @@ func NewSTT(sid int64, cfg *Config) (*STT, error) {
 func (stt *STT) Send(chunk []byte, end bool) error {
 	if end {
 		stt.client.sttInputStream.CloseStream() // will trigger sessionStoppedHandler
-		logger.Info("[stt] 停止推流", slog.Int64("sid", stt.SID))
+		logger.Info("[stt] Send stop pushing stream signal ", slog.Int64("sid", stt.SID))
 		return nil
 	}
 	return stt.client.pumpChunkIntoStream(chunk)

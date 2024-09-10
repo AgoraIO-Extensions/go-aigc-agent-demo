@@ -1,7 +1,7 @@
 max_life_time = 86400
 
 [stt]
-select = "ms"
+select = "ali"
 
 [stt.ali]
 url = "wss://nls-gateway.cn-shanghai.aliyuncs.com/ws/v1"
@@ -16,10 +16,9 @@ language_check_mode = 0
 auto_audio_check_language = ["zh-CN", "en-US", "ja-JP"]
 specify_language = "zh-CN"
 set_log = false
-result_queue_size = 1000
 
 [tts]
-select = "ms"
+select = "ali"
 
 [tts.ali]
 url = "https://nls-gateway-cn-shanghai.aliyuncs.com/stream/v1/tts"
@@ -45,7 +44,7 @@ file = "./demo.log"
 level = "debug"
 
 [llm]
-model_select = "chat-gpt4o"
+model_select = "qwen"
 with_history = true
 clause_mode = "punctuation"
 
