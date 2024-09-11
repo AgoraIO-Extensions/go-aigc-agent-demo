@@ -62,12 +62,16 @@ func main() {
 
 // initDependency Initialize various dependencies(global variables in the pkg/client package)
 func initDependency(cfg *config.Config) error {
-	if err := speech.InitToken(cfg.STT.Ali.AKID, cfg.STT.Ali.AKKey); err != nil {
-		return fmt.Errorf("[speech.InitToken]%v", err)
+	if cfg.STT.Select == config.AliSTT || cfg.TTS.Select == config.AliTTS {
+		if err := speech.InitToken(cfg.STT.Ali.AKID, cfg.STT.Ali.AKKey); err != nil {
+			return fmt.Errorf("[speech.InitToken]%v", err)
+		}
 	}
 
-	if err := alitts.Init(cfg.TTS.Ali.URL, cfg.TTS.Ali.AppKey, speech.TOKEN); err != nil {
-		return fmt.Errorf("[alitts.Init]%v", err)
+	if cfg.TTS.Select == config.AliTTS {
+		if err := alitts.Init(cfg.TTS.Ali.URL, cfg.TTS.Ali.AppKey, speech.TOKEN); err != nil {
+			return fmt.Errorf("[alitts.Init]%v", err)
+		}
 	}
 
 	// init「llm」
