@@ -105,3 +105,7 @@ pkg/httputil/client.go中的NewClient函数如果返回的是基于自定义tran
 #### 阿里stt/tts触发限流报错：
 如果阿里的stt/tts的出现了类似「Gateway:TOO_MANY_REQUESTS:Too many requests!」这样的错误信息，那么说明被限流了，可能的原因： 创建连接实例过于频繁或者是请求频率太高。
 解决的方法：要么降低响应的建连频率/请求并发数，要么调大客户账号在阿里云配置的对应服务的并发数（参考链接：https://nls-portal.console.aliyun.com/servicebuy）。
+
+## 发版日志
+v2.0：支持阿里/微软
+v2.1: 优化stt/tts初始化逻辑
