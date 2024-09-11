@@ -51,10 +51,9 @@ type payload struct {
 }
 
 func (c *conn) onTaskFailed(jsonStr string, _ interface{}) {
-	if c.sid != 0 {
-		logger.Info(fmt.Sprintf("[onTaskFailed]:%s", jsonStr), slog.Int64("sid", c.sid))
-		c.result <- &common.Result{Fail: true}
-	}
+	logger.Error(fmt.Sprintf("[onTaskFailed]:%s", jsonStr), slog.Int64("sid", c.sid))
+	c.result <- &common.Result{Fail: true}
+
 }
 
 // onStarted This function is triggered by the Start function
