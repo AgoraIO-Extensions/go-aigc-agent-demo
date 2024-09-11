@@ -100,3 +100,8 @@ sid是指对一个sentence的唯一标识。如果对几个sentence划分到一�
 #### http预连接
 pkg/httputil/client.go中的NewClient函数如果返回的是基于自定义transport的client，那么该client的首次http/https请求将省去建立连接的耗时。
 此外，该client还支持默认client所支持的连接池功能，以及http1.1升级http2等功能
+
+## 常见错误
+#### 阿里stt/tts触发限流报错：
+如果阿里的stt/tts的出现了类似「Gateway:TOO_MANY_REQUESTS:Too many requests!」这样的错误信息，那么说明被限流了，可能的原因： 创建连接实例过于频繁或者是请求频率太高。
+解决的方法：要么降低响应的建连频率/请求并发数，要么调大客户账号在阿里云配置的对应服务的并发数（参考链接：https://nls-portal.console.aliyun.com/servicebuy）。
