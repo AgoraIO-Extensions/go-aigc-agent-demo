@@ -12,5 +12,6 @@ export CGO_CFLAGS="-I$ProjectRoot/pkg/microsoft/speechsdk/include/c_api"
 export CGO_LDFLAGS="-L$ProjectRoot/pkg/microsoft/speechsdk/lib/x64 -lMicrosoft.CognitiveServices.Speech.core"
 export LD_LIBRARY_PATH=$ProjectRoot/pkg/microsoft/speechsdk/lib/x64:$LD_LIBRARY_PATH
 
+export GOPROXY=https://goproxy.cn,direct
 go build -ldflags "-X 'main.buildTimeStamp=$(date +%s)'" -o main.out main.go
 ./main.out $@
