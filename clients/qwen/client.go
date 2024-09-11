@@ -3,8 +3,6 @@ package qwen
 import (
 	"fmt"
 	"go-aigc-agent-demo/pkg/httputil"
-	"go-aigc-agent-demo/pkg/logger"
-	"log/slog"
 )
 
 var client *Client
@@ -41,10 +39,6 @@ func Init(url, apikey string) error {
 			url:    url,
 			apiKey: apikey,
 		},
-	}
-
-	if err := httputil.WarmUpConnectionPool(client.client, url); err != nil {
-		logger.Error("[httputil.WarmUpConnectionPool] failed.", slog.Any("err", err))
 	}
 	return nil
 }

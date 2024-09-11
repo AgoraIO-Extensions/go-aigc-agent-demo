@@ -8,21 +8,6 @@ import (
 	"net/http"
 )
 
-func WarmUpConnectionPool(client *Client, url string) error {
-	req, err := http.NewRequest("HEAD", url, nil)
-	if err != nil {
-		return fmt.Errorf("[http.NewRequest]%w", err)
-	}
-
-	resp, err := client.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("[client.Do]%w", err)
-	}
-	defer resp.Body.Close()
-
-	return nil
-}
-
 func (c *Client) JSONPost(ctx context.Context, url string, reqStruct interface{}, headers map[string]string) (*http.Response, error) {
 	var err error
 

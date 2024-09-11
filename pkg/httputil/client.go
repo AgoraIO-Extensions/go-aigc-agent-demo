@@ -50,7 +50,7 @@ func preConnect(scheme, hostName, port string) (*http.Transport, error) {
 				c = tcpConn
 			})
 			if c != nil {
-				logger.Info("use pre http conn")
+				logger.Info("use pre http conn", slog.String("addr", addr))
 				return c, nil
 			}
 			return newTCPConn(ctx, hostName, port)
@@ -65,7 +65,7 @@ func preConnect(scheme, hostName, port string) (*http.Transport, error) {
 				c = tlsConn
 			})
 			if c != nil {
-				logger.Info("use pre https conn")
+				logger.Info("use pre https conn", slog.String("addr", addr))
 				return c, nil
 			}
 			return newTlsConn(ctx, hostName, port)

@@ -3,8 +3,6 @@ package alitts
 import (
 	"fmt"
 	"go-aigc-agent-demo/pkg/httputil"
-	"go-aigc-agent-demo/pkg/logger"
-	"log/slog"
 )
 
 var client *Client
@@ -43,10 +41,6 @@ func Init(url string, appkey string, token string) error {
 			appkey:  appkey,
 			token:   token,
 		},
-	}
-
-	if err := httputil.WarmUpConnectionPool(client.client, url); err != nil {
-		logger.Error("[httputil.WarmUpConnectionPool] failed.", slog.Any("err", err))
 	}
 	return nil
 }
