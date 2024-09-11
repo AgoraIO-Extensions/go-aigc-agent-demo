@@ -56,7 +56,9 @@
   - **alibaba**: 与阿里有关的公共依赖
     - **speech**: 与阿里语音（识别/合成）有关的公共依赖
       - **token.go**: 初始化访问阿里语音服务的token
-  - **httputil**: http请求的一些公共访问函数
+  - **httputil**:
+    - **client.go**: 使用自定义的client，主要是解决首次建连的耗时问题
+    - **request.go**: 基于自定义的client发起post请求
   - **logger**: 日志包
 
 
@@ -95,8 +97,6 @@ sid是指对一个sentence的唯一标识。如果对几个sentence划分到一�
 - 含义：因为一个sentence在llm返回的结果以多个segment的形式交给tts，所以tts会独立地、并发地处理这些segment，然后异步地将各个segment的返回的音频结果合并起来
 - 优点：降低了 多个segment在 语音合成时因为同步等待所带来的耗时
 - 注意：并发度够用就行，调高了会触发限流。经验值：2
-#### http连接池、http预热连接
-含义：在pkg/httputil中初始化http.Client时有用到http.Transport来开启连接池功能。同时也有提前预热连接函数WarmUpConnectionPool
-使用：在llm、tts等用到http请求访问的场景都有用到
-意义：连接池可以降低 并发请求场景下 新建连接的概率。预热连接可以在项目初始化阶段就把本机与各个服务host的http长连接建立好，避免首次请求时建连引入耗时
-
+#### http预连接
+pkg/httputil/client.go中的NewClient函数如果返回的是基于自定义transport的client，那么该client的首次http/https请求将省去建立连接的耗时。
+此外，该client还支持默认client所支持的连接池功能，以及http1.1升级http2等功能
