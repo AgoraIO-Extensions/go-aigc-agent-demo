@@ -73,7 +73,12 @@ enum Audio_Stream_Wave_Format
     /// <summary>
     /// Stream WaveFormat definition for Mu-law-encoded format.
     /// </summary>
-    StreamWaveFormat_MULAW = 0x0007
+    StreamWaveFormat_MULAW = 0x0007,
+
+    /// <summary>
+    /// Stream WaveFormat definition for G.722-encoded format.
+    /// </summary>
+    StreamWaveFormat_G722 = 0x028F
 };
 
 typedef enum Audio_Stream_Container_Format Audio_Stream_Container_Format;

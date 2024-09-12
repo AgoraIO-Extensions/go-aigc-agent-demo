@@ -186,10 +186,7 @@ enum class PropertyId
     SpeechServiceConnection_RecoModelName = 3005,
 
     /// <summary>
-    /// The decryption key of the model to be used for speech recognition.
-    /// Under normal circumstances, you shouldn't use this property directly.
-    /// Currently this is only valid when EmbeddedSpeechConfig is used.
-    /// Added in version 1.19.0
+    /// This property is deprecated.
     /// </summary>
     SpeechServiceConnection_RecoModelKey = 3006,
 
@@ -254,10 +251,7 @@ enum class PropertyId
     SpeechServiceConnection_SynthOfflineVoice = 3113,
 
     /// <summary>
-    /// The decryption key of the voice to be used for speech synthesis.
-    /// Under normal circumstances, you shouldn't use this property directly.
-    /// Instead, use <see cref="EmbeddedSpeechConfig::SetSpeechSynthesisVoice"/>.
-    /// Added in version 1.19.0
+    /// This property is deprecated.
     /// </summary>
     SpeechServiceConnection_SynthModelKey = 3114,
 
@@ -295,6 +289,11 @@ enum class PropertyId
     /// Added in 1.25.0
     /// </summary>
     SpeechServiceConnection_LanguageIdMode = 3205,
+
+    /// <summary>
+    /// The speech service connection translation categoryId.
+    /// </summary>
+    SpeechServiceConnection_TranslationCategoryId = 3206,
 
     /// <summary>
     /// The auto detect source languages
@@ -464,6 +463,23 @@ enum class PropertyId
     /// Added in version 1.17.0.
     /// </summary>
     SpeechServiceResponse_SynthesisBackend = 5020,
+
+    /// <summary>
+    /// Determines if intermediate results contain speaker identification.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Allowed values are "true" or "false". If set to "true", the intermediate results will contain speaker identification.
+    /// The default value if unset or set to an invalid value is "false".
+    /// </para>
+    /// <para>
+    /// This is currently only supported for scenarios using the <see cref="Transcription.ConversationTranscriber"./>
+    /// </para>
+    /// <para>
+    /// Adding in version 1.40.
+    /// </para>
+    /// </remarks>
+    SpeechServiceResponse_DiarizeIntermediateResults = 5025,
 
     /// <summary>
     /// The cancellation reason. Currently unused.
@@ -722,9 +738,7 @@ enum class PropertyId
     SpeechTranslation_ModelName = 13100,
 
     /// <summary>
-    /// The decryption key of a model to be used for speech translation.
-    /// Do not use this property directly.
-    /// Currently this is only valid when EmbeddedSpeechConfig is used.
+    /// This property is deprecated.
     /// </summary>
     SpeechTranslation_ModelKey = 13101,
 
@@ -736,9 +750,7 @@ enum class PropertyId
     KeywordRecognition_ModelName = 13200,
 
     /// <summary>
-    /// The decryption key of a model to be used for keyword recognition.
-    /// Do not use this property directly.
-    /// Currently this is only valid when EmbeddedSpeechConfig is used.
+    /// This property is deprecated.
     /// </summary>
     KeywordRecognition_ModelKey = 13201,
 
@@ -750,7 +762,22 @@ enum class PropertyId
     /// The default setting is "false". Note that metrics may not be available
     /// from all embedded speech scenarios.
     /// </summary>
-    EmbeddedSpeech_EnablePerformanceMetrics = 13300
+    EmbeddedSpeech_EnablePerformanceMetrics = 13300,
+
+    /// <summary>
+    /// The pitch of the synthesized speech.
+    /// </summary>
+    SpeechSynthesisRequest_Pitch = 14001,
+
+    /// <summary>
+    /// The rate of the synthesized speech.
+    /// </summary>
+    SpeechSynthesisRequest_Rate = 14002,
+
+    /// <summary>
+    /// The volume of the synthesized speech.
+    /// </summary>
+    SpeechSynthesisRequest_Volume = 14003,
 };
 
 /// <summary>
@@ -1299,7 +1326,14 @@ enum class SpeechSynthesisOutputFormat
     /// AMR-WB audio at 16kHz sampling rate.
     /// (Added in 1.24.0)
     /// </summary>
-    AmrWb16000Hz = 38
+    AmrWb16000Hz = 38,
+
+    /// <summary>
+    /// g722-16khz-64kbps
+    /// G.722 audio at 16kHz sampling rate and 64kbps bitrate.
+    /// (Added in 1.38.0)
+    /// </summary>
+    G72216Khz64Kbps = 39
 };
 
 /// <summary>

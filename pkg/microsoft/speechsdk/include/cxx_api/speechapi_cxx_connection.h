@@ -128,7 +128,6 @@ public:
 
     /// <summary>
     /// Appends a parameter in a message to service.
-    /// This method doesn't work for the connection of SpeechSynthesizer.
     /// Added in version 1.7.0.
     /// </summary>
     /// <param name="path">the message path.</param>
@@ -143,7 +142,6 @@ public:
 
     /// <summary>
     /// Send a message to the speech service.
-    /// This method doesn't work for the connection of SpeechSynthesizer.
     /// Added in version 1.7.0.
     /// </summary>
     /// <param name="path">The path of the message.</param>

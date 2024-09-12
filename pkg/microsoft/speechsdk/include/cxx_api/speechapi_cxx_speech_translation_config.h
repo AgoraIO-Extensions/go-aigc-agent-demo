@@ -153,6 +153,15 @@ public:
     }
 
     /// <summary>
+    /// Sets a Category Id that will be passed to service. Category Id is used to find the custom model.
+    /// </summary>
+    /// <param name="categoryId">Category Id to set.</param>
+    void SetCustomModelCategoryId(const SPXSTRING& categoryId)
+    {
+        SPX_THROW_ON_FAIL(speech_translation_config_set_custom_model_category_id(m_hconfig, Utils::ToUTF8(categoryId).c_str()));
+    }
+
+    /// <summary>
     /// Gets target languages for translation.
     /// </summary>
     /// <returns>Vector of translation target languages.</returns>

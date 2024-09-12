@@ -10,7 +10,7 @@ export LD_LIBRARY_PATH=$ProjectRoot/pkg/agora-go-sdk/agora_sdk:$LD_LIBRARY_PATH
 #### Microsoft Speech SDK environment variables：
 export CGO_CFLAGS="-I$ProjectRoot/pkg/microsoft/speechsdk/include/c_api"
 export CGO_LDFLAGS="-L$ProjectRoot/pkg/microsoft/speechsdk/lib/x64 -lMicrosoft.CognitiveServices.Speech.core"
-export LD_LIBRARY_PATH=$ProjectRoot/pkg/microsoft/speechsdk/lib/x64:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$ProjectRoot/pkg/microsoft/speechsdk/lib/x64:$LD_LIBRARY_PATH # 告诉操作系统在哪里可以找到库
 
 export GOPROXY=https://goproxy.cn,direct
 go build -ldflags "-X 'main.buildTimeStamp=$(date +%s)'" -o main.out main.go

@@ -49,7 +49,8 @@ func main() {
 
 	// start engine
 	if err = em.Run(); err != nil {
-		logger.Error("fail to ")
+		logger.Error("[em.Run]fail", slog.String("err", err.Error()))
+		return
 	}
 
 	sig := make(chan os.Signal, 1)

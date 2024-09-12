@@ -85,7 +85,12 @@ enum class AudioStreamWaveFormat
     /// <summary>
     /// AudioStreamWaveFormat definition for Mu-law-encoded format.
     /// </summary>
-    MULAW = 0x0007
+    MULAW = 0x0007,
+
+    /// <summary>
+    /// AudioStreamWaveFormat definition for G.722-encoded format.
+    /// </summary>
+    G722 = 0x028F
 };
 
 /// <summary>

@@ -15,3 +15,7 @@ SPXAPI embedded_speech_config_get_num_speech_reco_models(SPXSPEECHCONFIGHANDLE h
 SPXAPI embedded_speech_config_get_speech_reco_model(SPXSPEECHCONFIGHANDLE hconfig, uint32_t index, SPXSPEECHRECOMODELHANDLE* hmodel);
 SPXAPI embedded_speech_config_get_num_speech_translation_models(SPXSPEECHCONFIGHANDLE hconfig, uint32_t* numModels);
 SPXAPI embedded_speech_config_get_speech_translation_model(SPXSPEECHCONFIGHANDLE hconfig, uint32_t index, SPXSPEECHRECOMODELHANDLE* hmodel);
+SPXAPI embedded_speech_config_set_speech_recognition_model(SPXSPEECHCONFIGHANDLE hconfig, const char* name, const char* license);
+SPXAPI embedded_speech_config_set_speech_synthesis_voice(SPXSPEECHCONFIGHANDLE hconfig, const char* name, const char* license);
+SPXAPI embedded_speech_config_set_speech_translation_model(SPXSPEECHCONFIGHANDLE hconfig, const char* name, const char* license);
+SPXAPI embedded_speech_config_set_keyword_recognition_model(SPXSPEECHCONFIGHANDLE hconfig, const char* name, const char* license);

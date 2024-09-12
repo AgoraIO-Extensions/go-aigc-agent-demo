@@ -134,7 +134,12 @@ typedef enum
     /// amr-wb-16000hz
     /// AMR-WB audio at 16kHz sampling rate.
     /// (Added in 1.24.0)
-    SpeechSynthesisOutputFormat_AmrWb16000Hz = 38
+    SpeechSynthesisOutputFormat_AmrWb16000Hz = 38,
+
+    /// g722-16khz-64kbps
+    /// G.722 audio at 16kHz sampling rate and 64kbps bitrate.
+    /// (Added in 1.38.0)
+    SpeechSynthesisOutputFormat_G72216Khz64Kbps = 39,
 } Speech_Synthesis_Output_Format;
 
 typedef enum

@@ -113,11 +113,11 @@ public:
     /// Sets the model for speech recognition.
     /// </summary>
     /// <param name="name">The model name.</param>
-    /// <param name="key">The model decryption key.</param>
-    void SetSpeechRecognitionModel(const SPXSTRING& name, const SPXSTRING& key)
+    /// <param name="license">The license text.</param>
+    void SetSpeechRecognitionModel(const SPXSTRING& name, const SPXSTRING& license)
     {
-        SetProperty(PropertyId::SpeechServiceConnection_RecoModelName, name);
-        SetProperty(PropertyId::SpeechServiceConnection_RecoModelKey, key);
+        SPX_THROW_ON_FAIL(embedded_speech_config_set_speech_recognition_model(
+            static_cast<SPXSPEECHCONFIGHANDLE>(m_config), Utils::ToUTF8(name).c_str(), Utils::ToUTF8(license).c_str()));
     }
 
     /// <summary>
@@ -160,11 +160,11 @@ public:
     /// Sets the voice for embedded speech synthesis.
     /// </summary>
     /// <param name="name">The voice name of the embedded speech synthesis.</param>
-    /// <param name="key">The decryption key.</param>
-    void SetSpeechSynthesisVoice(const SPXSTRING& name, const SPXSTRING& key)
+    /// <param name="license">The license text.</param>
+    void SetSpeechSynthesisVoice(const SPXSTRING& name, const SPXSTRING& license)
     {
-        SetProperty(PropertyId::SpeechServiceConnection_SynthOfflineVoice, name);
-        SetProperty(PropertyId::SpeechServiceConnection_SynthModelKey, key);
+        SPX_THROW_ON_FAIL(embedded_speech_config_set_speech_synthesis_voice(
+            static_cast<SPXSPEECHCONFIGHANDLE>(m_config), Utils::ToUTF8(name).c_str(), Utils::ToUTF8(license).c_str()));
     }
 
     /// <summary>
@@ -221,11 +221,11 @@ public:
     /// Sets the model for speech translation.
     /// </summary>
     /// <param name="name">Model name.</param>
-    /// <param name="key">Model decryption key.</param>
-    void SetSpeechTranslationModel(const SPXSTRING& name, const SPXSTRING& key)
+    /// <param name="license">License text.</param>
+    void SetSpeechTranslationModel(const SPXSTRING& name, const SPXSTRING& license)
     {
-        SetProperty(PropertyId::SpeechTranslation_ModelName, name);
-        SetProperty(PropertyId::SpeechTranslation_ModelKey, key);
+        SPX_THROW_ON_FAIL(embedded_speech_config_set_speech_translation_model(
+            static_cast<SPXSPEECHCONFIGHANDLE>(m_config), Utils::ToUTF8(name).c_str(), Utils::ToUTF8(license).c_str()));
     }
 
     /// <summary>
@@ -243,11 +243,11 @@ public:
     /// wake words and direct commands.
     /// </summary>
     /// <param name="name">Model name.</param>
-    /// <param name="key">Model decryption key.</param>
-    void SetKeywordRecognitionModel(const SPXSTRING& name, const SPXSTRING& key)
+    /// <param name="license">License text.</param>
+    void SetKeywordRecognitionModel(const SPXSTRING& name, const SPXSTRING& license)
     {
-        SetProperty(PropertyId::KeywordRecognition_ModelName, name);
-        SetProperty(PropertyId::KeywordRecognition_ModelKey, key);
+        SPX_THROW_ON_FAIL(embedded_speech_config_set_keyword_recognition_model(
+            static_cast<SPXSPEECHCONFIGHANDLE>(m_config), Utils::ToUTF8(name).c_str(), Utils::ToUTF8(license).c_str()));
     }
 
     /// <summary>

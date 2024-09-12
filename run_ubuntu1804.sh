@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -e
+
+#### Project root path：
+export ProjectRoot=$(cd "$(dirname "$0")"; pwd)
+#### Path to system library files：
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+#### agora-go-sdk
+export LD_LIBRARY_PATH=$ProjectRoot/pkg/agora-go-sdk/agora_sdk:$LD_LIBRARY_PATH
+#### Microsoft Speech SDK environment variables：
+export CGO_CFLAGS="-I$ProjectRoot/pkg/microsoft/speechsdk_ubuntu18.04/include/c_api"
+export CGO_LDFLAGS="-L$ProjectRoot/pkg/microsoft/speechsdk_ubuntu18.04/lib/x64 -lMicrosoft.CognitiveServices.Speech.core"
+export LD_LIBRARY_PATH=$ProjectRoot/pkg/microsoft/speechsdk_ubuntu18.04/lib/x64:$LD_LIBRARY_PATH # 告诉操作系统在哪里可以找到库
+
+export GOPROXY=https://goproxy.cn,direct
+go build -ldflags "-X 'main.buildTimeStamp=$(date +%s)'" -o main.out main.go
+./main.out $@

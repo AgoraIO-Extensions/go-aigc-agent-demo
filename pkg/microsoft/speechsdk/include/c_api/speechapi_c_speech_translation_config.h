@@ -13,3 +13,4 @@ SPXAPI speech_translation_config_from_host(SPXSPEECHCONFIGHANDLE* configHandle, 
 
 SPXAPI speech_translation_config_add_target_language(SPXSPEECHCONFIGHANDLE configHandle, const char* language);
 SPXAPI speech_translation_config_remove_target_language(SPXSPEECHCONFIGHANDLE configHandle, const char* language);
+SPXAPI speech_translation_config_set_custom_model_category_id(SPXSPEECHCONFIGHANDLE configHandle, const char* categoryId);

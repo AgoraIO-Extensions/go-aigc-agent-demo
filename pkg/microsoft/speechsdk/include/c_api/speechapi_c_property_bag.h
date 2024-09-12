@@ -63,6 +63,7 @@ enum  PropertyId
     SpeechServiceConnection_EndSilenceTimeoutMs = 3201,
     SpeechServiceConnection_EnableAudioLogging = 3202,
     SpeechServiceConnection_LanguageIdMode = 3205,
+    SpeechServiceConnection_TranslationCategoryId = 3206,
 
     SpeechServiceConnection_AutoDetectSourceLanguages = 3300,
     SpeechServiceConnection_AutoDetectSourceLanguageResult = 3301,
@@ -94,6 +95,7 @@ enum  PropertyId
     SpeechServiceResponse_SynthesisConnectionLatencyMs = 5013,
     SpeechServiceResponse_SynthesisNetworkLatencyMs = 5014,
     SpeechServiceResponse_SynthesisServiceLatencyMs = 5015,
+    SpeechServiceResponse_DiarizeIntermediateResults = 5025,
 
     CancellationDetails_Reason = 6000,
     CancellationDetails_ReasonText = 6001,

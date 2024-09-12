@@ -2,16 +2,18 @@
 ## 运行环境
 - 支持的Linux版本：
     - Ubuntu 18.04 LTS及以上版本
-    - CentOS 7.0及以上版本
 - go版本：
     - go 1.20及以上版本
-    - 未在go 1.19及以下版本上进行测试
 
 ## 运行方式
-- 完善 ./config/alibaba.toml配置文件中未填写的必要信息
-- 项目根路径下执行：
+- 完善 ./config/chat-robot.toml配置文件中未填写的必要信息
+- 如果是 Ubuntu 20.04/22.04/24.04 ，则在项目根路径下执行：
 ```bash
 ./run.sh
+```
+- 如果是 Ubuntu 18.04 ，则在项目根路径下执行：
+```bash
+./run_ubuntu1804.sh
 ```
 
 ## 代码介绍
@@ -109,3 +111,4 @@ pkg/httputil/client.go中的NewClient函数如果返回的是基于自定义tran
 ## 发版日志
 v2.0：支持阿里/微软   
 v2.1: 优化stt/tts初始化逻辑
+v2.2: 微软语音服务兼容 ubuntu 18.04、20.04、22.04、24.04
