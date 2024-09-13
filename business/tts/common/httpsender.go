@@ -64,7 +64,7 @@ func (h *HttpSender) sendSeg(ctx context.Context, seg *Segment) {
 	rc, err := h.askFunc(ctx, seg.Text)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			logger.Info("[tts] HTTP request was interrupted", slog.String("msg", err.Error()))
+			logger.Info("[tts] HTTP request was interrupted", slog.String("msg", err.Error()), sentencelifecycle.Tag(seg.Sid))
 			return
 		}
 		logger.Error("[tts] Failed to request tts", slog.Any("err", err))
