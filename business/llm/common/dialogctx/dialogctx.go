@@ -8,9 +8,9 @@ import (
 type Role string
 
 const (
-	SYSTEM    = "system"
-	USER      = "user"
-	ASSISTANT = "assistant"
+	SYSTEM    Role = "system"
+	USER      Role = "user"
+	ASSISTANT Role = "assistant"
 )
 
 // qa Q&A
