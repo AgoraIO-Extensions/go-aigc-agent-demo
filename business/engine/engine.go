@@ -75,9 +75,11 @@ func (e *Engine) Run() error {
 	e.rtc.SetOnReceiveAudio(e.filter.OnRcvRTCAudio)
 
 	// 处理filter音频
-	go func() {
-		e.HandlerFilterAudio()
-	}()
+
+	sttResultQueue := make(chan *STTResult, 20)
+	go e.HandlerFilterAudio(sttResultQueue)
+
+	go e.HandleSTTResults(sttResultQueue)
 
 	// rtc建立连接
 	if err := e.rtc.Connect(); err != nil {
@@ -93,16 +95,14 @@ type STTResult struct {
 	fullText chan string
 }
 
-func (e *Engine) HandlerFilterAudio() {
+func (e *Engine) HandlerFilterAudio(sttResultQueue chan<- *STTResult) {
 	filterAudio := e.filter.OutputAudio()
 	var (
 		sid           int64
 		sgid          = sentencelifecycle.FirstSid
 		ctx, cancel   = context.WithCancel(context.Background())
 		sentenceAudio chan *filter.Chunk
-		sttResults    = make(chan *STTResult, 20)
 	)
-	go e.HandleSTTResults(sttResults)
 	for {
 		chunk, ok := <-filterAudio
 		if !ok {
@@ -123,10 +123,10 @@ func (e *Engine) HandlerFilterAudio() {
 			logger.Info("[stt] Get the sentence audio header from upstream", sentencelifecycle.Tag(sid, sgid))
 			sentencelifecycle.GroupInst().SetSidToSgid(sid, sgid)
 			sentenceSTTResult := &STTResult{ctx: ctx, sid: sid, sgid: sgid, fullText: make(chan string, 1)}
-			sttResults <- sentenceSTTResult
+			sttResultQueue <- sentenceSTTResult
 
 			sentenceAudio = make(chan *filter.Chunk, 100)
-			go e.HandlerSentenceAudio(sid, sgid, sentenceAudio, sentenceSTTResult)
+			go e.SendAudioToSTT(sid, sgid, sentenceAudio, sentenceSTTResult)
 			sentenceAudio <- chunk
 		case filter.SpeakToMute:
 			sentenceAudio <- chunk
@@ -138,7 +138,7 @@ func (e *Engine) HandlerFilterAudio() {
 	}
 }
 
-func (e *Engine) HandlerSentenceAudio(sid, sgid int64, sentenceAudio <-chan *filter.Chunk, sentenceSTTResult *STTResult) {
+func (e *Engine) SendAudioToSTT(sid, sgid int64, sentenceAudio <-chan *filter.Chunk, sentenceSTTResult *STTResult) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Error(fmt.Sprintf("Recovered from panic: %v", r))
@@ -206,38 +206,42 @@ func (e *Engine) HandlerSentenceAudio(sid, sgid int64, sentenceAudio <-chan *fil
 }
 
 func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
-	var groupSentencesMerge string
+	var concatenatedText string
 	for {
+		/* get one stt recognized text */
 		r, ok := <-sttResults
 		if !ok {
 			logger.Info("[stt] STT has been closed.")
 			return
 		}
 		sid, sgid := r.sid, r.sgid
-		if sid == sgid { // 新的group
-			groupSentencesMerge = ""
+		if sid == sgid { // means it‘s a new group, so reset concatenatedText
+			concatenatedText = ""
 		}
 
+		/* concat stt recognized texts that belongs to a group  */
 		ctx := r.ctx
 		select {
 		case <-time.After(time.Second * 5):
 			logger.Info("[stt] Timeout waiting for STT to retrieve recognition result: 5 seconds.", sentencelifecycle.Tag(sid, sgid))
 			continue
 		case sentenceText := <-r.fullText:
-			groupSentencesMerge = groupSentencesMerge + sentenceText
-			if groupSentencesMerge == "" {
+			concatenatedText = concatenatedText + sentenceText
+			if concatenatedText == "" {
 				logger.Info("[stt] STT result is an empty string after concatenation.", sentencelifecycle.Tag(sid, sgid))
 				continue
 			}
-			logger.Info("[stt] Text after concatenation", slog.String("text", groupSentencesMerge), sentencelifecycle.Tag(sid, sgid))
+			logger.Info("[stt] Text after concatenation", slog.String("text", concatenatedText), sentencelifecycle.Tag(sid, sgid))
 		}
 
+		/* check if interrupted */
 		if errors.Is(ctx.Err(), context.Canceled) {
 			logger.Info("[stt] After collecting the STT results, the sentence was interrupted.", sentencelifecycle.Tag(sid, sgid))
 			continue
 		}
 
-		segChan, err := e.llm.Ask(ctx, sid, groupSentencesMerge)
+		/* use {$concatenatedText} ask LLM */
+		segChan, err := e.llm.Ask(ctx, sid, concatenatedText)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				logger.Info("[llm] Interrupted while requesting LLM.", slog.Any("msg", err), sentencelifecycle.Tag(sid, sgid))
@@ -247,13 +251,17 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 			continue
 		}
 
+		/* create a TTS client connection */
 		ttsClient, err := e.ttsFactory.CreateTTS(sid)
 		if err != nil {
 			logger.Error("[tts] Failed to create TTS client instance.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
 			continue
 		}
 
+		/* asynchronously send the TTS result to RTC */
 		go e.SendAudioToRTC(ctx, ttsClient.GetResult(), sid, sgid)
+
+		/* send the LLM result to TTS */
 	LOOP:
 		for i := 0; ; i++ {
 			select {
@@ -263,7 +271,7 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 					break LOOP
 				}
 				ttsClient.Send(ctx, i, seg)
-			case <-ctx.Done():
+			case <-ctx.Done(): // interrupted
 				logger.Info("[tts] The process of sending a segment to TTS was interrupted.", sentencelifecycle.Tag(sid))
 				break LOOP
 			}
