@@ -24,6 +24,17 @@ type rtc struct {
 	OpenMsgReturn bool   `toml:"open_msg_return"`
 }
 
+/* --------------------------------------------------  filter  --------------------------------------------------------- */
+
+type Vad struct {
+	StartWin int `toml:"start_win"`
+	StopWin  int `toml:"stop_win"`
+}
+
+type Filter struct {
+	Vad Vad `toml:"vad"`
+}
+
 /* ------------------------------------------------  stt/tts  ------------------------------------------------------- */
 
 type msSTT struct {
@@ -157,6 +168,7 @@ type Config struct {
 	TTS         TTS       `toml:"tts"`
 	Log         logConfig `toml:"log"`
 	LLM         LLM       `toml:"llm"`
+	Filter      Filter    `toml:"filter"`
 }
 
 func Inst() *Config {

@@ -34,7 +34,7 @@ func InitEngine() (*Engine, error) {
 	var err error
 
 	// 初始化「vad」
-	e.filter = filter.NewFilter(sentencelifecycle.FirstSid)
+	e.filter = filter.NewFilter(sentencelifecycle.FirstSid, cfg.Filter.Vad.StartWin, cfg.Filter.Vad.StopWin)
 
 	// 初始化「rtc」
 	e.rtc = rtc.NewRTC(cfg.RTC.AppID, "", cfg.RTC.ChannelName, cfg.RTC.UserID, cfg.RTC.Region)

@@ -20,10 +20,10 @@ type Filter struct {
 	output chan *Chunk
 }
 
-func NewFilter(FirstSid int64) *Filter {
+func NewFilter(FirstSid int64, startWin, StopWin int) *Filter {
 	return &Filter{
 		sid:    FirstSid - 1,
-		vad:    NewVad(),
+		vad:    NewVad(startWin, StopWin),
 		output: make(chan *Chunk, 1000),
 	}
 }

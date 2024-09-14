@@ -10,8 +10,25 @@ type Vad struct {
 	v *agoraservice.AudioVad
 }
 
-func NewVad() *Vad {
-	v := agoraservice.NewAudioVad(nil)
+func NewVad(startWin, StopWin int) *Vad {
+	cfg := &agoraservice.AudioVadConfig{
+		FftSz:                 1024,
+		AnaWindowSz:           768,
+		HopSz:                 160,
+		FrqInputAvailableFlag: 0,
+		UseCVersionAIModule:   0,
+		VoiceProbThr:          0.7,
+		RmsThr:                -40.0,
+		JointThr:              0.0,
+		Aggressive:            2.0,
+
+		StartRecognizeCount:    startWin,
+		StopRecognizeCount:     StopWin,
+		PreStartRecognizeCount: 10,
+		ActivePercent:          0.6,
+		InactivePercent:        0.2,
+	}
+	v := agoraservice.NewAudioVad(cfg)
 	return &Vad{v: v}
 }
 

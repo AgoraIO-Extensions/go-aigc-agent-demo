@@ -1,5 +1,10 @@
 max_life_time = 86400
 
+[filter]
+[filter.vad]
+start_win = 10
+stop_win = 10
+
 [stt]
 select = "ali"
 
