@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-aigc-agent-demo/business/exit"
 	"go-aigc-agent-demo/business/filter"
+	"go-aigc-agent-demo/business/interrupt"
 	"go-aigc-agent-demo/business/llm"
 	"go-aigc-agent-demo/business/rtc"
 	"go-aigc-agent-demo/business/sentencelifecycle"
@@ -89,7 +90,7 @@ func (e *Engine) Run() error {
 }
 
 type STTResult struct {
-	ctx      context.Context
+	ctxNode  *interrupt.CtxNode
 	sid      int64
 	sgid     int64
 	fullText chan string
@@ -98,15 +99,16 @@ type STTResult struct {
 func (e *Engine) HandlerFilterAudio(sttResultQueue chan<- *STTResult) {
 	filterAudio := e.filter.OutputAudio()
 	var (
-		sid           int64
-		sgid          = sentencelifecycle.FirstSid
-		ctx, cancel   = context.WithCancel(context.Background())
-		sentenceAudio chan *filter.Chunk
+		cfg                 = config.Inst()
+		sid                 int64
+		sgid                = sentencelifecycle.FirstSid
+		ctxNode             = interrupt.NewCtxNode(0)
+		sentenceAudio       chan *filter.Chunk
+		prevSentenceEndTime = time.Time{}
 	)
 	for {
 		chunk, ok := <-filterAudio
 		if !ok {
-			cancel()
 			logger.Info("[filter] Filter output queue has been consumed and closed.")
 			return
 		}
@@ -114,24 +116,25 @@ func (e *Engine) HandlerFilterAudio(sttResultQueue chan<- *STTResult) {
 		sid = chunk.Sid
 		switch chunk.Status {
 		case filter.MuteToSpeak:
-			cancel() // 触发断句，打断所有历史sentence的处理逻辑
-			ctx, cancel = context.WithCancel(context.Background())
-			if sentencelifecycle.IfSidIntoRTC(sid - 1) { // 判断上一个sid对应的sentence是否已经到达发送rtc的阶段，如果到了，则开启新的 sentencelifecycle group
-				sgid = sid // 新的group
-				sentencelifecycle.DeleteSidIntoRtc(sid - 1)
+			if cfg.InterruptStage == config.AfterFilter {
+				interrupt.Interrupt(ctxNode)
 			}
-			logger.Info("[stt] Get the sentence audio header from upstream", sentencelifecycle.Tag(sid, sgid))
+			ctxNode = interrupt.NewCtxNode(sid)
+			sgid = Grouping(sgid, sid, prevSentenceEndTime)
+			logger.Info("[stt] Get the sentence audio head from upstream", sentencelifecycle.Tag(sid, sgid))
 			sentencelifecycle.GroupInst().SetSidToSgid(sid, sgid)
-			sentenceSTTResult := &STTResult{ctx: ctx, sid: sid, sgid: sgid, fullText: make(chan string, 1)}
+			sentenceSTTResult := &STTResult{ctxNode: ctxNode, sid: sid, sgid: sgid, fullText: make(chan string, 1)}
 			sttResultQueue <- sentenceSTTResult
 
 			sentenceAudio = make(chan *filter.Chunk, 100)
 			go e.SendAudioToSTT(sid, sgid, sentenceAudio, sentenceSTTResult)
 			sentenceAudio <- chunk
 		case filter.SpeakToMute:
+			logger.Info("[stt] Get the sentence audio tail from upstream", sentencelifecycle.Tag(sid, sgid))
+			prevSentenceEndTime = time.Now()
 			sentenceAudio <- chunk
 			close(sentenceAudio)
-			sentencelifecycle.GroupInst().StoreInAudioEndTimeInOneSentenceGroup(sgid, chunk.Time)
+			sentencelifecycle.GroupInst().StoreAudioEndTime(sid, chunk.Time)
 		default:
 			sentenceAudio <- chunk
 		}
@@ -157,12 +160,21 @@ func (e *Engine) SendAudioToSTT(sid, sgid int64, sentenceAudio <-chan *filter.Ch
 	var sendEnd time.Time
 
 	go func() {
+		cfg := config.Inst()
 		sttResult := sttClient.GetResult()
+		var interrupted bool
+		var firstContent string
 		for {
 			r, ok := <-sttResult
 			if !ok {
 				logger.Error("[stt] Unreachable code")
 				break
+			}
+			if cfg.InterruptStage == config.AfterSTT && !interrupted && r.Text != "" {
+				firstContent = r.Text
+				interrupt.Interrupt(sentenceSTTResult.ctxNode)
+				logger.Info(fmt.Sprintf("[stt] do interrupt, triggered by sid:%d", sid))
+				interrupted = true
 			}
 			if r.Fail {
 				sentenceSTTResult.fullText <- ""
@@ -172,6 +184,13 @@ func (e *Engine) SendAudioToSTT(sid, sgid int64, sentenceAudio <-chan *filter.Ch
 			if r.Complete {
 				sentenceSTTResult.fullText <- r.Text
 				if r.Text == "" {
+					if firstContent != "" {
+						// It seems that Microsoft’s SDK has encountered this bug before.
+						logger.Error("[stt] The STT SDK returned content that was not as expected, it is likely a bug in the SDK")
+					}
+					if cfg.InterruptStage == config.AfterSTT {
+						interrupt.ReleaseCtxNode(sentenceSTTResult.ctxNode)
+					}
 					logger.Info("[stt] STT returned an empty string", sentencelifecycle.Tag(sid, sgid))
 					return
 				}
@@ -220,17 +239,16 @@ func (e *Engine) HandleSTTResults(sttResults <-chan *STTResult) {
 		}
 
 		/* concat stt recognized texts that belongs to a group  */
-		ctx := r.ctx
+		ctx := r.ctxNode.Ctx
 		select {
 		case <-time.After(time.Second * 5):
 			logger.Info("[stt] Timeout waiting for STT to retrieve recognition result: 5 seconds.", sentencelifecycle.Tag(sid, sgid))
 			continue
 		case sentenceText := <-r.fullText:
-			concatenatedText = concatenatedText + sentenceText
-			if concatenatedText == "" {
-				logger.Info("[stt] STT result is an empty string after concatenation.", sentencelifecycle.Tag(sid, sgid))
+			if sentenceText == "" {
 				continue
 			}
+			concatenatedText = concatenatedText + sentenceText
 			logger.Info("[stt] Text after concatenation", slog.String("text", concatenatedText), sentencelifecycle.Tag(sid, sgid))
 		}
 
@@ -300,11 +318,11 @@ quickSend:
 			firstSend = false
 			sentencelifecycle.SetSidIntoRTC(sid)
 			logger.Debug("[rtc] Started sending audio to RTC.", sentencelifecycle.Tag(sid, sgid))
-			sentenceGroupBegin := sentencelifecycle.GroupInst().GetInAudioEndTimeInOneSentenceGroup(sgid)
+			sentenceGroupBegin := sentencelifecycle.GroupInst().GetAudioEndTime(sid)
 			if sentenceGroupBegin == nil {
 				logger.Error("Failed to retrieve the start time of the sentence lifecycle group based on SGID.", sentencelifecycle.Tag(sid, sgid))
 			} else {
-				sentencelifecycle.GroupInst().DeleteInAudioEndTimeInOneSentenceGroup(sgid)
+				sentencelifecycle.GroupInst().DeleteAudioEndTime(sid)
 				dur := time.Now().Sub(*sentenceGroupBegin)
 				logger.Info("[sentence]<duration> STT audio end time ——> Sending the first chunk to RTC", sentencelifecycle.Tag(sid, sgid), slog.Int64("dur", dur.Milliseconds()))
 			}

@@ -1,4 +1,6 @@
 max_life_time = 86400
+interrupt_stage = "after_filter"
+grouping_strategy = "dependOnRTCSend"
 
 [filter]
 [filter.vad]

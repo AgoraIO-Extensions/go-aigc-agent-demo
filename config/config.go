@@ -158,17 +158,33 @@ type LLM struct {
 
 /* -------------------------------------------------  config  ------------------------------------------------------- */
 
+type InterruptStage string
+
+const (
+	AfterFilter InterruptStage = "after_filter"
+	AfterSTT    InterruptStage = "after_stt"
+)
+
+type GroupingStrategy string
+
+const (
+	DependOnRTCSend GroupingStrategy = "dependOnRTCSend"
+	DependOnTime    GroupingStrategy = "dependOnTime"
+)
+
 var config *Config
 
 type Config struct {
-	StartTime   int64
-	MaxLifeTime int64     `toml:"max_life_time"`
-	RTC         rtc       `toml:"rtc"`
-	STT         STT       `toml:"stt"`
-	TTS         TTS       `toml:"tts"`
-	Log         logConfig `toml:"log"`
-	LLM         LLM       `toml:"llm"`
-	Filter      Filter    `toml:"filter"`
+	StartTime        int64
+	MaxLifeTime      int64            `toml:"max_life_time"`
+	InterruptStage   InterruptStage   `toml:"interrupt_stage"`
+	GroupingStrategy GroupingStrategy `toml:"grouping_strategy"`
+	RTC              rtc              `toml:"rtc"`
+	STT              STT              `toml:"stt"`
+	TTS              TTS              `toml:"tts"`
+	Log              logConfig        `toml:"log"`
+	LLM              LLM              `toml:"llm"`
+	Filter           Filter           `toml:"filter"`
 }
 
 func Inst() *Config {

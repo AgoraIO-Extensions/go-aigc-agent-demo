@@ -12,13 +12,13 @@ func GroupInst() *Groups {
 }
 
 var groups = &Groups{
-	sidTosgid:       new(sync.Map),
-	sgidToStartTime: make(map[int64]*time.Time),
+	sidTosgid:      new(sync.Map),
+	sidToStartTime: make(map[int64]*time.Time),
 }
 
 type Groups struct {
-	sidTosgid       *sync.Map
-	sgidToStartTime map[int64]*time.Time
+	sidTosgid      *sync.Map
+	sidToStartTime map[int64]*time.Time
 }
 
 /*  ------------------------------------------------- sid ——> sgid ------------------------------------------------- */
@@ -40,19 +40,19 @@ func (g *Groups) DeleteSidToSgid(sid int64) {
 	g.sidTosgid.Delete(sid)
 }
 
-/* ---------------------------------------------- sgid —> end time of input audio within the SentenceLifecycle group ---------------------------------------------- */
+/* ---------------------------------------------- sid —> end time of a sentence input audio ---------------------------------------------- */
 
-// StoreInAudioEndTimeInOneSentenceGroup Store the reception time of the last chunk of input audio from RTC within a sentence group
-func (g *Groups) StoreInAudioEndTimeInOneSentenceGroup(sgid int64, startTime time.Time) {
-	g.sgidToStartTime[sgid] = &startTime
+// StoreAudioEndTime Store the reception time of the last chunk of input audio from RTC within a sentence
+func (g *Groups) StoreAudioEndTime(sid int64, startTime time.Time) {
+	g.sidToStartTime[sid] = &startTime
 }
 
-func (g *Groups) GetInAudioEndTimeInOneSentenceGroup(sgid int64) *time.Time {
-	return g.sgidToStartTime[sgid]
+func (g *Groups) GetAudioEndTime(sid int64) *time.Time {
+	return g.sidToStartTime[sid]
 }
 
-func (g *Groups) DeleteInAudioEndTimeInOneSentenceGroup(sgid int64) {
-	delete(g.sgidToStartTime, sgid)
+func (g *Groups) DeleteAudioEndTime(sid int64) {
+	delete(g.sidToStartTime, sid)
 }
 
 /* ----------------------------------------------------- log tag ---------------------------------------------------- */
