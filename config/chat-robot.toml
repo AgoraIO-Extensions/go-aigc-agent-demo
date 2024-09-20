@@ -1,11 +1,14 @@
 max_life_time = 86400
 interrupt_stage = "after_filter"
-grouping_strategy = "dependOnRTCSend"
 
 [filter]
 [filter.vad]
 start_win = 10
 stop_win = 10
+
+[grouping]
+strategy = "dependOnTime"
+time_threshold = 1000 # If the gap between two sentences is less than this value, they will be merged into one group.
 
 [stt]
 select = "ali"

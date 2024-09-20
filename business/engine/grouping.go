@@ -11,15 +11,15 @@ func Grouping(oldSgid, sid int64, prevSentenceEndTime time.Time) int64 {
 	cfg := config.Inst()
 	sgid := oldSgid
 
-	if cfg.GroupingStrategy == config.DependOnRTCSend {
+	if cfg.Grouping.Strategy == config.DependOnRTCSend {
 		if sentencelifecycle.IfSidIntoRTC(sid - 1) {
 			sgid = sid
 			sentencelifecycle.DeleteSidIntoRtc(sid - 1)
 		}
 	}
 
-	if cfg.GroupingStrategy == config.DependOnTime {
-		if time.Since(prevSentenceEndTime) > time.Millisecond*500 {
+	if cfg.Grouping.Strategy == config.DependOnTime {
+		if time.Since(prevSentenceEndTime).Milliseconds() > config.Inst().Grouping.TimeThreshold {
 			sgid = sid
 		}
 	}
