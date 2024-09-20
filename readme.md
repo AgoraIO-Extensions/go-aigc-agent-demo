@@ -112,4 +112,5 @@ pkg/httputil/client.go中的NewClient函数如果返回的是基于自定义tran
 v2.0：支持阿里/微软   
 v2.1: 优化stt/tts初始化逻辑   
 v2.2: 微软语音服务兼容 ubuntu 18.04、20.04、22.04、24.04   
-v2.3: 增加vad参数，控制人声识别敏感度
+v2.3: 增加vad参数，控制人声识别敏感度   
+v2.4: 1.打断时机可配置，支持在filter或者是stt模块进行打断，以适应不同的客户场景需求。2. sentence分组现在支持两种策略：dependOnRTCSend/dependOnTime
