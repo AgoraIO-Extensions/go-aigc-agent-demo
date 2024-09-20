@@ -102,7 +102,6 @@ func (e *Engine) HandlerFilterAudio(sttResultQueue chan<- *STTResult) {
 		cfg                 = config.Inst()
 		sid                 int64
 		sgid                = sentencelifecycle.FirstSid
-		ctxNode             = interrupt.NewCtxNode(0)
 		sentenceAudio       chan *filter.Chunk
 		prevSentenceEndTime = time.Time{}
 	)
@@ -116,10 +115,10 @@ func (e *Engine) HandlerFilterAudio(sttResultQueue chan<- *STTResult) {
 		sid = chunk.Sid
 		switch chunk.Status {
 		case filter.MuteToSpeak:
+			ctxNode := interrupt.NewCtxNode(sid)
 			if cfg.InterruptStage == config.AfterFilter {
 				interrupt.Interrupt(ctxNode)
 			}
-			ctxNode = interrupt.NewCtxNode(sid)
 			sgid = Grouping(sgid, sid, prevSentenceEndTime)
 			logger.Info("[stt] Get the sentence audio head from upstream", sentencelifecycle.Tag(sid, sgid))
 			sentencelifecycle.GroupInst().SetSidToSgid(sid, sgid)
