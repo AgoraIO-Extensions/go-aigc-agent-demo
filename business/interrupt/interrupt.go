@@ -13,9 +13,9 @@ var locker = new(sync.Mutex)
 
 func init() {
 	head = new(CtxNode)
+	tail = new(CtxNode)
 	head.Sid = -1
 	head.next = tail
-	tail = new(CtxNode)
 	tail.Sid = -2
 	tail.prev = head
 }
