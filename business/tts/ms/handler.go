@@ -20,5 +20,5 @@ func (tts *TTS) synthesizedHandler(event speech.SpeechSynthesisEventArgs) {
 
 func (tts *TTS) cancelledHandler(event speech.SpeechSynthesisEventArgs) {
 	defer event.Close()
-	logger.Error(fmt.Sprintf("[tts cancelledHandler] Reason:%v", event.Result.Reason))
+	logger.ErrorContext(tts.ctx, fmt.Sprintf("[tts cancelledHandler] Reason:%v", event.Result.Reason))
 }

@@ -1,8 +1,8 @@
 package stt
 
 import (
+	"context"
 	"fmt"
-	"go-aigc-agent-demo/business/sentencelifecycle"
 	"go-aigc-agent-demo/business/stt/ali"
 	"go-aigc-agent-demo/business/stt/common"
 	"go-aigc-agent-demo/business/stt/ms"
@@ -43,21 +43,21 @@ func NewFactory(vendorName config.SttSelect, sttConfig config.STT) (*Factory, er
 	return factory, nil
 }
 
-func (f *Factory) CreateSTT(sid int64) (STT, error) {
+func (f *Factory) CreateSTT(ctx context.Context) (STT, error) {
 	switch f.vendorName {
 	case config.AliSTT:
-		aliSTT, err := ali.NewSTT(sid, f.aliConfig)
+		aliSTT, err := ali.NewSTT(ctx, f.aliConfig)
 		if err != nil {
 			return nil, fmt.Errorf("[ali.NewSTT]%w", err)
 		}
 		return aliSTT, nil
 	case config.MsSTT:
 		start := time.Now()
-		msSTT, err := ms.NewSTT(sid, f.msConfig)
+		msSTT, err := ms.NewSTT(ctx, f.msConfig)
 		if err != nil {
 			return nil, fmt.Errorf("[ms.NewSTT]%w", err)
 		}
-		logger.Debug("[stt]<duration> ms.NewSTT", slog.Int64("dur", time.Since(start).Milliseconds()), sentencelifecycle.Tag(sid))
+		logger.DebugContext(ctx, "[stt]<duration> ms.NewSTT", slog.Int64("dur", time.Since(start).Milliseconds()))
 		return msSTT, nil
 	default:
 		return nil, fmt.Errorf("incorrect vendorname parameter")

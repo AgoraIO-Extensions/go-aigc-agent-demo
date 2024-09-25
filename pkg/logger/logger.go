@@ -13,13 +13,27 @@ import (
 
 /* ------------------------------------------------  自定义handler  ------------------------------------------------ */
 
+const (
+	XRequestID       = "X-Request-Sid"
+	SentenceMetaData = "SentenceMetaData"
+)
+
 type CustomHandler struct {
 	handler slog.Handler
 }
 
+var contextHooks []func(ctx context.Context, record *slog.Record)
+
+func AddContextHook(hook func(ctx context.Context, record *slog.Record)) {
+	contextHooks = append(contextHooks, hook)
+}
+
 func (h *CustomHandler) Handle(ctx context.Context, record slog.Record) error {
-	if requestID, ok := ctx.Value("X-Request-ID").(string); ok {
-		record.AddAttrs(slog.String("X-Request-ID", requestID))
+	if requestID, ok := ctx.Value(XRequestID).(string); ok {
+		record.AddAttrs(slog.String(XRequestID, requestID))
+	}
+	for _, hook := range contextHooks {
+		hook(ctx, &record)
 	}
 	return h.handler.Handle(ctx, record)
 }
@@ -29,11 +43,12 @@ func (h *CustomHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *CustomHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return h.handler.WithAttrs(attrs)
+	newJsonHandler := h.handler.WithAttrs(attrs)
+	return &CustomHandler{handler: newJsonHandler}
 }
 
 func (h *CustomHandler) WithGroup(name string) slog.Handler {
-	return h.handler.WithGroup(name)
+	return &CustomHandler{handler: h.handler.WithGroup(name)}
 }
 
 /* ------------------------------------------------  初始化  ------------------------------------------------ */

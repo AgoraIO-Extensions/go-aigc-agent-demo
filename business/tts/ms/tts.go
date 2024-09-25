@@ -78,16 +78,16 @@ func NewTTSConfig(setLog bool, speechKey, speechRegion string, languageCheckMode
 
 type TTS struct {
 	*ttscommon.HttpSender
-	sid               int64
+	ctx               context.Context
 	speechConfig      *speech.SpeechConfig
 	speechSynthesizer *speech.SpeechSynthesizer
 }
 
-func NewTTS(sid int64, con int, cfg *Config) (*TTS, error) {
+func NewTTS(ctx context.Context, con int, cfg *Config) (*TTS, error) {
 	tts := &TTS{
-		sid: sid,
+		ctx: ctx,
 	}
-	tts.HttpSender = ttscommon.NewHttpSender(sid, con, tts.streamAsk)
+	tts.HttpSender = ttscommon.NewHttpSender(ctx, con, tts.streamAsk)
 	var err error
 	defer func() {
 		if err != nil {

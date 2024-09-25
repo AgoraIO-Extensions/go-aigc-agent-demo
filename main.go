@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go-aigc-agent-demo/business/engine"
+	"go-aigc-agent-demo/business/sentence"
 	"go-aigc-agent-demo/business/workerid"
 	"go-aigc-agent-demo/clients/alitts"
 	qwenCli "go-aigc-agent-demo/clients/qwen"
@@ -30,6 +31,7 @@ func main() {
 	cfg := config.Inst()
 
 	// init log
+	logger.AddContextHook(sentence.LogHook)
 	logger.Init(cfg.Log.File, cfg.Log.Level, map[any]any{"uuid": workerid.UUID})
 	logger.Info(fmt.Sprintf("buildTimeStamp:%s, config:%+v", buildTimeStamp, cfg))
 

@@ -29,10 +29,10 @@ type CtxNode struct {
 	canceled bool
 }
 
-func NewCtxNode(sid int64) *CtxNode {
+func NewCtxNode(pCtx context.Context, sid int64) *CtxNode {
 	locker.Lock()
 	defer locker.Unlock()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(pCtx)
 
 	node := &CtxNode{
 		prev:   tail.prev,
@@ -46,7 +46,7 @@ func NewCtxNode(sid int64) *CtxNode {
 	return node
 }
 
-func ReleaseCtxNode(node *CtxNode) {
+func (node *CtxNode) ReleaseCtxNode() {
 	locker.Lock()
 	defer locker.Unlock()
 	if node.canceled {
@@ -54,13 +54,13 @@ func ReleaseCtxNode(node *CtxNode) {
 	}
 	node.cancel()
 	node.canceled = true
-	logger.Info(fmt.Sprintf("[interrupt] sid:%d will be released", node.Sid))
+	logger.InfoContext(node.Ctx, fmt.Sprintf("[interrupt] sid:%d will be released", node.Sid))
 	node.prev.next = node.next
 	node.next.prev = node.prev
 }
 
 // Interrupt node interrupt node.prev
-func Interrupt(node *CtxNode) {
+func (node *CtxNode) Interrupt() {
 	locker.Lock()
 	defer locker.Unlock()
 
@@ -69,7 +69,7 @@ func Interrupt(node *CtxNode) {
 	}
 	nd := node.prev
 	for nd != head {
-		logger.Info(fmt.Sprintf("[interrupt] sid:%d will interrupt sid:%d", node.Sid, nd.Sid))
+		logger.InfoContext(node.Ctx, fmt.Sprintf("[interrupt] sid:%d will interrupt sid:%d", node.Sid, nd.Sid))
 		nd.cancel()
 		nd.canceled = true
 		nd = nd.prev

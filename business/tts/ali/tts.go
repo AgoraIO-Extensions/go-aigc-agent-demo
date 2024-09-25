@@ -8,13 +8,13 @@ import (
 
 type TTS struct {
 	*common.HttpSender
-	sid int64
+	ctx context.Context
 }
 
-func NewTTS(sid int64, con int) *TTS {
+func NewTTS(ctx context.Context, con int) *TTS {
 	return &TTS{
-		HttpSender: common.NewHttpSender(sid, con, alitts.Inst().StreamAsk),
-		sid:        sid,
+		HttpSender: common.NewHttpSender(ctx, con, alitts.Inst().StreamAsk),
+		ctx:        ctx,
 	}
 }
 

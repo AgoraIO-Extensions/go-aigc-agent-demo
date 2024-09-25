@@ -1,11 +1,11 @@
 package ms
 
 import (
+	"context"
 	"fmt"
 	"github.com/Microsoft/cognitive-services-speech-sdk-go/audio"
 	ms_common "github.com/Microsoft/cognitive-services-speech-sdk-go/common"
 	"github.com/Microsoft/cognitive-services-speech-sdk-go/speech"
-	"go-aigc-agent-demo/business/sentencelifecycle"
 	"go-aigc-agent-demo/business/stt/common"
 	"go-aigc-agent-demo/pkg/logger"
 	"time"
@@ -17,15 +17,15 @@ type client struct {
 	speechRecognizer *speech.SpeechRecognizer
 	sttInputStream   *audio.PushAudioInputStream
 	stop             chan struct{}
-	sid              int64
+	ctx              context.Context
 	results          []string
 	result           chan *common.Result
 }
 
-func newClient(sid int64, cfg *Config) (*client, error) {
+func newClient(ctx context.Context, cfg *Config) (*client, error) {
 	c := &client{
 		stop:   make(chan struct{}, 1),
-		sid:    sid,
+		ctx:    ctx,
 		result: make(chan *common.Result, 100),
 	}
 	var err error
@@ -73,10 +73,10 @@ func (c *client) asyncCloseSTT() {
 		select {
 		case <-c.stop:
 			c.close()
-			logger.Info("[stt] release resource", sentencelifecycle.Tag(c.sid))
+			logger.InfoContext(c.ctx, "[stt] release resource")
 		case <-time.After(time.Second * 30):
 			c.close()
-			logger.Info("[stt] Exceeded 30 seconds without receiving the recognition end signal, will release resource immediately.", sentencelifecycle.Tag(c.sid))
+			logger.InfoContext(c.ctx, "[stt] Exceeded 30 seconds without receiving the recognition end signal, will release resource immediately.")
 		}
 	}()
 }

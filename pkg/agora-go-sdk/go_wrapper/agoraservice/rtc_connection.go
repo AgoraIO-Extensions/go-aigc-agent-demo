@@ -34,7 +34,7 @@ const (
 type RtcConnectionInfo struct {
 	ConnectionId uint
 	/**
-	 * ID of the target channel. NULL if you did not call the connect
+	 * Sid of the target channel. NULL if you did not call the connect
 	 * method.
 	 */
 	ChannelId string
@@ -43,7 +43,7 @@ type RtcConnectionInfo struct {
 	 */
 	State int
 	/**
-	 * ID of the local user.
+	 * Sid of the local user.
 	 */
 	LocalUserId string
 	/**

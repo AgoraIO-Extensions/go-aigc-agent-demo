@@ -6,7 +6,6 @@ import (
 	"github.com/Microsoft/cognitive-services-speech-sdk-go/speech"
 	"go-aigc-agent-demo/business/stt/common"
 	"go-aigc-agent-demo/pkg/logger"
-	"log/slog"
 	"strings"
 )
 
@@ -16,7 +15,7 @@ func (c *client) sessionStartedHandler(event speech.SessionEventArgs) {
 
 func (c *client) sessionStoppedHandler(event speech.SessionEventArgs) {
 	defer event.Close()
-	logger.Info(fmt.Sprintf("[stt sessionStoppedHandler] text list：%+v", c.results), slog.Int64("sid", c.sid))
+	logger.InfoContext(c.ctx, fmt.Sprintf("[stt sessionStoppedHandler] text list：%+v", c.results))
 	c.result <- &common.Result{Text: strings.Join(c.results, ""), Complete: true}
 	c.stop <- struct{}{}
 }
@@ -39,10 +38,10 @@ func (c *client) cancelledHandler(event speech.SpeechRecognitionCanceledEventArg
 	defer event.Close()
 	switch event.Reason {
 	case ms_common.Error:
-		logger.Error(fmt.Sprintf("[stt cancelledHandler] error event. ErrorDetails:%s, reason:%s", event.ErrorDetails, event.Reason), slog.Int64("sid", c.sid))
+		logger.ErrorContext(c.ctx, fmt.Sprintf("[stt cancelledHandler] error event. ErrorDetails:%s, reason:%s", event.ErrorDetails, event.Reason))
 		c.result <- &common.Result{Fail: true}
 	case ms_common.CancelledByUser:
-		logger.Info(fmt.Sprintf("[stt cancelledHandler] ErrorDetails:%s, reason:%s", event.ErrorDetails, event.Reason), slog.Int64("sid", c.sid))
+		logger.InfoContext(c.ctx, fmt.Sprintf("[stt cancelledHandler] ErrorDetails:%s, reason:%s", event.ErrorDetails, event.Reason))
 		c.result <- &common.Result{Fail: true}
 	case ms_common.EndOfStream:
 	}

@@ -6,14 +6,14 @@ import (
 
 type Segment struct {
 	AudioChan chan []byte // 320 bytes per chunk
-	Sid       int64
-	ID        int
-	Text      string
-	SendTime  time.Time // time sent to TTS
+	//Sid       int64
+	ID       int
+	Text     string
+	SendTime time.Time // time sent to TTS
 }
 
 type Sentence struct {
-	ID        int64
+	//ID        int64
 	SegChan   chan *Segment
 	AudioChan chan []byte // 320 bytes per chunk
 }

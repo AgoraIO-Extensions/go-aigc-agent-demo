@@ -1,6 +1,7 @@
 package ali
 
 import (
+	"context"
 	"fmt"
 	nls "github.com/aliyun/alibabacloud-nls-go-sdk"
 	"go-aigc-agent-demo/business/stt/common"
@@ -11,15 +12,15 @@ type conn struct {
 	nlsST   *nls.SpeechTranscription
 	expTime time.Time // Connection expiration deadline: 10 seconds (set to 8 seconds)
 
-	sid         int64
+	ctx         context.Context
 	result      chan *common.Result
 	returnedAns bool
 }
 
-func newConn(cfg *Config, sid int64) (*conn, error) {
+func newConn(cfg *Config, ctx context.Context) (*conn, error) {
 	c := &conn{
 		expTime: time.Now().Add(time.Second * 8),
-		sid:     sid,
+		ctx:     ctx,
 		result:  make(chan *common.Result, 100),
 	}
 

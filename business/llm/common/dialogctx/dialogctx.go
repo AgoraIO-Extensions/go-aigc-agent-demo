@@ -15,13 +15,13 @@ const (
 
 // qa Q&A
 type qa struct {
-	qid int64  // Question ID (ID must be incremental)
+	qid int64  // Question Sid (Sid must be incremental)
 	q   string // Question content
 	a   string // Answer content
 }
 
 type Message struct {
-	qid     int64  // Question ID or Question ID after merge
+	qid     int64  // Question Sid or Question Sid after merge
 	Role    Role   `json:"role"`
 	Content string `json:"content"` // Question content or Question content after merge
 }

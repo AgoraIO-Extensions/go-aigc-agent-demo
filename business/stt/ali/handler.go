@@ -3,7 +3,7 @@ package ali
 import (
 	"encoding/json"
 	"fmt"
-	"go-aigc-agent-demo/business/sentencelifecycle"
+	"go-aigc-agent-demo/business/sentence"
 	"go-aigc-agent-demo/business/stt/common"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
@@ -51,7 +51,7 @@ type payload struct {
 }
 
 func (c *conn) onTaskFailed(jsonStr string, _ interface{}) {
-	logger.Error(fmt.Sprintf("[onTaskFailed]:%s", jsonStr), slog.Int64("sid", c.sid))
+	logger.ErrorContext(c.ctx, fmt.Sprintf("[onTaskFailed]:%s", jsonStr))
 	c.result <- &common.Result{Fail: true}
 
 }
@@ -76,11 +76,11 @@ func (c *conn) onResultChanged(jsonStr string, _ interface{}) {
 
 	resp := response{}
 	if err = json.Unmarshal([]byte(jsonStr), &resp); err != nil {
-		logger.Error("[onResultChanged] Failed to unmarshal the text JSON returned by ali-stt", slog.Any("err", err), slog.Int64("sid", c.sid))
+		logger.ErrorContext(c.ctx, "[onResultChanged] Failed to unmarshal the text JSON returned by ali-stt", slog.Any("err", err))
 		return
 	}
 	text := resp.Payload.Result
-	logger.Info("[onResultChanged] Intermediate values", slog.Int64("sid", c.sid), slog.String("text", text))
+	logger.InfoContext(c.ctx, "[onResultChanged] Intermediate values", slog.String("text", text))
 	c.result <- &common.Result{Text: text}
 }
 
@@ -95,19 +95,19 @@ Note: If no silence packets are sent after completing a sentence and the stop fu
 func (c *conn) onSentenceEnd(jsonStr string, _ interface{}) {
 	resp := response{}
 	if err := json.Unmarshal([]byte(jsonStr), &resp); err != nil {
-		logger.Error("[onSentenceEnd]Failed to unmarshal the text JSON returned by STT", slog.Any("err", err), slog.Int64("sid", c.sid))
+		logger.ErrorContext(c.ctx, "[onSentenceEnd]Failed to unmarshal the text JSON returned by STT", slog.Any("err", err))
 		c.result <- &common.Result{Fail: true}
 		return
 	}
 	c.returnedAns = true
 	text := resp.Payload.Result
-	logger.Info("[onSentenceEnd] recognition result", sentencelifecycle.Tag(c.sid), slog.String("text", text))
+	logger.InfoContext(c.ctx, "[onSentenceEnd] recognition result", slog.String("text", text))
 	c.result <- &common.Result{Text: text, Complete: true}
 	close(c.result)
 }
 
 func (c *conn) onCompleted(jsonStr string, _ interface{}) {
-	logger.Info(fmt.Sprintf("[stt] onCompleted:%s", jsonStr), slog.Int64("sid", c.sid))
+	logger.InfoContext(c.ctx, fmt.Sprintf("[stt] onCompleted:%s", jsonStr))
 	if !c.returnedAns {
 		c.result <- &common.Result{Text: "", Complete: true}
 		close(c.result)
@@ -115,7 +115,8 @@ func (c *conn) onCompleted(jsonStr string, _ interface{}) {
 }
 
 func (c *conn) onClose(_ interface{}) {
-	if c.sid != 0 {
-		logger.Info(fmt.Sprintf("onClose"), slog.Int64("sid", c.sid))
+	sid := sentence.GetMetaData(c.ctx).Sid
+	if sid != 0 {
+		logger.InfoContext(c.ctx, fmt.Sprintf("onClose"))
 	}
 }

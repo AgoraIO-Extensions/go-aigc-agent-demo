@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 	"go-aigc-agent-demo/business/llm/common/dialogctx"
-	"go-aigc-agent-demo/business/sentencelifecycle"
+	"go-aigc-agent-demo/business/sentence"
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
 )
 
 type streamClient interface {
-	StreamAsk(ctx context.Context, sid int64, llmMsgs []dialogctx.Message) (segChan <-chan string, err error)
+	StreamAsk(ctx context.Context, llmMsgs []dialogctx.Message) (segChan <-chan string, err error)
 }
 
 type LLM struct {
@@ -36,18 +36,18 @@ func NewLLM(vendorName config.ModelSelect, prompt string, cfg *config.LLM) (*LLM
 	return &LLM{prompt: prompt, dCTX: dCTX, streamClient: client}, nil
 }
 
-func (l *LLM) Ask(ctx context.Context, sid int64, question string) (<-chan string, error) {
-	sgid := sentencelifecycle.GroupInst().GetSgidBySid(sid)
-	msgs := l.dCTX.AddQuestion(question, sgid) // Build and return the current context information chain.
+func (l *LLM) Ask(ctx context.Context, question string) (<-chan string, error) {
+	sMetaData := sentence.GetMetaData(ctx)
+	msgs := l.dCTX.AddQuestion(question, sMetaData.Sgid) // Build and return the current context information chain.
 	if l.prompt != "" {
 		msgs = append([]dialogctx.Message{{Role: dialogctx.SYSTEM, Content: l.prompt}}, msgs...)
 	}
-	logger.Info("[llm] question with dialog context", slog.Any("dialog_ctx", msgs), sentencelifecycle.Tag(sid))
-	segChan, err := l.streamClient.StreamAsk(ctx, sid, msgs)
+	logger.InfoContext(ctx, "[llm] question with dialog context", slog.Any("dialog_ctx", msgs))
+	segChan, err := l.streamClient.StreamAsk(ctx, msgs)
 	if err != nil {
 		return nil, fmt.Errorf("[streamAsk]%w", err)
 	}
-	logger.Info("[llm] Return response headers for LLM requests", sentencelifecycle.Tag(sid))
+	logger.InfoContext(ctx, "[llm] Return response headers for LLM requests")
 
 	segChanCopy := make(chan string, 1000)
 	go func() {
@@ -66,12 +66,12 @@ func (l *LLM) Ask(ctx context.Context, sid int64, question string) (<-chan strin
 					might be based on the content that has already been returned, so it is necessary to add this part of
 					the answer to dCTX in a timely manner.
 				*/
-				if err = l.dCTX.StreamAddAnswer(seg, sgid); err != nil {
-					logger.Error("[llm] Streaming append of the answer failed.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+				if err = l.dCTX.StreamAddAnswer(seg, sMetaData.Sgid); err != nil {
+					logger.ErrorContext(ctx, "[llm] Streaming append of the answer failed.", slog.Any("err", err))
 					return
 				}
 			case <-ctx.Done():
-				logger.Info("[llm] Interrupted while reading the LLM's returned text in a streaming manner.", sentencelifecycle.Tag(sid))
+				logger.InfoContext(ctx, "[llm] Interrupted while reading the LLM's returned text in a streaming manner.")
 				return
 			}
 		}

@@ -6,7 +6,7 @@ import (
 	"go-aigc-agent-demo/business/filter"
 	"go-aigc-agent-demo/business/llm"
 	"go-aigc-agent-demo/business/rtc"
-	"go-aigc-agent-demo/business/sentencelifecycle"
+	"go-aigc-agent-demo/business/sentence"
 	"go-aigc-agent-demo/business/stt"
 	"go-aigc-agent-demo/business/tts"
 	"go-aigc-agent-demo/config"
@@ -29,7 +29,7 @@ func InitEngine() (*Engine, error) {
 	var err error
 
 	// 初始化「vad」
-	e.filter = filter.NewFilter(sentencelifecycle.FirstSid, cfg.Filter.Vad.StartWin, cfg.Filter.Vad.StopWin)
+	e.filter = filter.NewFilter(sentence.FirstSid, cfg.Filter.Vad.StartWin, cfg.Filter.Vad.StopWin)
 
 	// 初始化「rtc」
 	e.rtc = rtc.NewRTC(cfg.RTC.AppID, "", cfg.RTC.ChannelName, cfg.RTC.UserID, cfg.RTC.Region)

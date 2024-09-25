@@ -50,7 +50,7 @@ type SSEResp struct {
 	RequestID string `json:"request_id"`
 }
 
-func (cli *Client) StreamAsk(ctx context.Context, model string, msgs []Msg, sid int64) (io.ReadCloser, error) {
+func (cli *Client) StreamAsk(ctx context.Context, model string, msgs []Msg) (io.ReadCloser, error) {
 	header := map[string]string{
 		"Authorization":   "Bearer " + cli.streamAsk.apiKey,
 		"Content-Type":    "application/json",
@@ -72,7 +72,7 @@ func (cli *Client) StreamAsk(ctx context.Context, model string, msgs []Msg, sid 
 	if resp.StatusCode/100 != 2 {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			logger.Error("[io.ReadAll]", slog.Any("err", err), slog.Int64("sid", sid))
+			logger.ErrorContext(ctx, "[io.ReadAll]", slog.Any("err", err))
 		}
 		return nil, fmt.Errorf("server returned an error, statuscode:%d, resp.body:%s", resp.StatusCode, string(body))
 	}

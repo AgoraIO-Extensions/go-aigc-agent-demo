@@ -3,35 +3,28 @@ package engine
 import (
 	"context"
 	"errors"
-	"fmt"
 	"go-aigc-agent-demo/business/filter"
 	"go-aigc-agent-demo/business/interrupt"
-	"go-aigc-agent-demo/business/sentencelifecycle"
+	"go-aigc-agent-demo/business/sentence"
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
-	"runtime"
 	"time"
 )
 
 type sentenceAudio struct {
 	ctxNode *interrupt.CtxNode
-	sid     int64
-	sgid    int64
-	audio   chan *filter.Chunk
+	//sMetaData *sentence.MetaData
+	audio chan *filter.Chunk
 }
 
 type sentenceText struct {
 	ctxNode  *interrupt.CtxNode
-	sid      int64
-	sgid     int64
 	fullText chan string
 }
 
 type sentenceGroupText struct {
 	ctx  context.Context
-	sid  int64  // 当前group下最大（最晚）的sid值
-	sgid int64  // 当前group下最小（最早）的sid值
 	text string // 当前group下所有文本的拼接值
 }
 
@@ -42,15 +35,13 @@ func (e *Engine) ProcessSTT(input <-chan *filter.Chunk, output chan *sentenceGro
 	var sentenceTextQueue = make(chan *sentenceText, 100)
 	go func() {
 		for {
-			audio := <-sentenceAudioQueue
-			st := &sentenceText{
-				ctxNode:  audio.ctxNode,
-				sid:      audio.sid,
-				sgid:     audio.sgid,
+			sAudio := <-sentenceAudioQueue
+			sText := &sentenceText{
+				ctxNode:  sAudio.ctxNode,
 				fullText: make(chan string, 1),
 			}
-			sentenceTextQueue <- st
-			e.sendToSTT(audio, st)
+			sentenceTextQueue <- sText
+			e.sendToSTT(sAudio, sText)
 		}
 	}()
 
@@ -60,45 +51,46 @@ func (e *Engine) ProcessSTT(input <-chan *filter.Chunk, output chan *sentenceGro
 // groupAudio 将流式音频分开为句子音频，并将将句子音频分组（sgid）
 func (e *Engine) groupAudio(streamAudioQueue <-chan *filter.Chunk, sentenceAudioQueue chan<- sentenceAudio) {
 	var (
-		cfg                 = config.Inst()
-		sid                 int64
-		sgid                = sentencelifecycle.FirstSid
-		audioChan           chan *filter.Chunk
-		prevSentenceEndTime = time.Time{}
+		cfg           = config.Inst()
+		sid, sgid     int64
+		prevSMetaData = new(sentence.MetaData)
+		sMetaData     = new(sentence.MetaData)
+		audioChan     chan *filter.Chunk
 	)
 
 	for {
-		chunk, ok := <-streamAudioQueue
-		if !ok {
-			logger.Info("[filter] Filter output queue has been consumed and closed.")
-			return
+		chunk := <-streamAudioQueue
+		if delay := time.Since(chunk.Time).Milliseconds(); delay > 10 {
+			logger.Warn("[stt] the time delay in receiving the audio chunk output from the filter >10ms.", slog.Int64("delay", delay), slog.Int64("sid", chunk.Sid))
 		}
-
 		sid = chunk.Sid
+		if sgid == 0 {
+			sgid = sid
+		}
 		switch chunk.Status {
 		case filter.MuteToSpeak:
-			ctxNode := interrupt.NewCtxNode(sid)
+			*prevSMetaData = *sMetaData
+			sMetaData = new(sentence.MetaData)
+			// create a CtxNode based on the root context containing sMetaData
+			ctxNode := interrupt.NewCtxNode(context.WithValue(context.Background(), logger.SentenceMetaData, sMetaData), sid)
 			if cfg.InterruptStage == config.AfterFilter {
-				interrupt.Interrupt(ctxNode)
+				ctxNode.Interrupt()
 			}
-			sgid = Grouping(sgid, sid, prevSentenceEndTime)
-			logger.Info("[stt] Get the sentence audio head from upstream", sentencelifecycle.Tag(sid, sgid))
-			sentencelifecycle.GroupInst().SetSidToSgid(sid, sgid)
-
+			sgid = Grouping(prevSMetaData, sid)
+			sMetaData.Sid = sid
+			sMetaData.Sgid = sgid
+			logger.InfoContext(ctxNode.Ctx, "[stt] Get the sentence audio head from upstream")
 			audioChan = make(chan *filter.Chunk, 100)
 			audioChan <- chunk
 			sentenceAudioQueue <- sentenceAudio{
 				ctxNode: ctxNode,
-				sid:     sid,
-				sgid:    sgid,
 				audio:   audioChan,
 			}
 		case filter.SpeakToMute:
-			logger.Info("[stt] Get the sentence audio tail from upstream", sentencelifecycle.Tag(sid, sgid))
-			prevSentenceEndTime = time.Now()
+			logger.Info("[stt] get the sentence audio tail from upstream", slog.Int64("sid", sid), slog.Int64("sgid", sgid))
+			sMetaData.FilterAudioTailRcvTime = chunk.Time
 			audioChan <- chunk
 			close(audioChan)
-			sentencelifecycle.GroupInst().StoreAudioEndTime(sid, chunk.Time)
 		default:
 			audioChan <- chunk
 		}
@@ -107,21 +99,10 @@ func (e *Engine) groupAudio(streamAudioQueue <-chan *filter.Chunk, sentenceAudio
 
 // sendToSTT 将句子音频发送给stt，并依据stt返回结果进行打断
 func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Error(fmt.Sprintf("Recovered from panic: %v", r))
-			buf := make([]byte, 1<<16)
-			stackSize := runtime.Stack(buf, false)
-			logger.Error(fmt.Sprintf("Stack trace:\n%s", buf[:stackSize]))
-		}
-	}()
-
-	sid := sentenceAudio.sid
-	sgid := sentenceAudio.sgid
-
-	sttClient, err := e.sttFactory.CreateSTT(sid)
+	ctx := sText.ctxNode.Ctx
+	sttClient, err := e.sttFactory.CreateSTT(ctx)
 	if err != nil {
-		logger.Error("[stt] Failed to obtain STT connection instance.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+		logger.ErrorContext(ctx, "[stt] Failed to obtain STT connection instance.", slog.Any("err", err))
 		return
 	}
 
@@ -131,22 +112,22 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 		for {
 			chunk, ok := <-sentenceAudio.audio
 			if !ok {
-				logger.Error("[stt] Unreachable code")
+				logger.ErrorContext(ctx, "[stt] Unreachable code")
 				break
 			}
 			if chunk.Status == filter.SpeakToMute {
 				if dur := time.Since(chunk.Time).Milliseconds(); dur > 10 {
-					logger.Warn("[stt]<duration> The audio chunk took more than 10ms from VAD output to STT input.", slog.Int64("dur", dur), sentencelifecycle.Tag(sid, sgid))
+					logger.WarnContext(ctx, "[stt]<duration> The audio chunk took more than 10ms from VAD output to STT input.", slog.Int64("dur", dur))
 				}
 				sendEnd = time.Now()
 				if err = sttClient.Send(nil, true); err != nil {
-					logger.Error("[stt] Failed to send the stop command to STT.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+					logger.ErrorContext(ctx, "[stt] Failed to send the stop command to STT.", slog.Any("err", err))
 					return
 				}
 				break
 			}
 			if err = sttClient.Send(chunk.Data, false); err != nil {
-				logger.Error("[stt] Failed to send chunk to STT.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+				logger.ErrorContext(ctx, "[stt] Failed to send chunk to STT.", slog.Any("err", err))
 				return
 			}
 		}
@@ -159,13 +140,13 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 		for {
 			r, ok := <-sttResult
 			if !ok {
-				logger.Error("[stt] Unreachable code")
+				logger.ErrorContext(ctx, "[stt] Unreachable code")
 				break
 			}
 
 			if cfg.InterruptStage == config.AfterSTT && firstContent == "" && r.Text != "" {
-				interrupt.Interrupt(sText.ctxNode)
-				logger.Info(fmt.Sprintf("[stt] do interrupt, triggered by sid:%d", sid))
+				sText.ctxNode.Interrupt()
+				logger.InfoContext(ctx, "[stt] do interrupt")
 			}
 
 			if firstContent == "" && r.Text != "" {
@@ -174,7 +155,7 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 
 			if r.Fail {
 				sText.fullText <- ""
-				logger.Error("[stt] Asynchronous recognition sText failed", sentencelifecycle.Tag(sid, sgid))
+				logger.ErrorContext(ctx, "[stt] Asynchronous recognition sText failed")
 				return
 			}
 			if r.Complete {
@@ -182,15 +163,15 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 				if r.Text == "" {
 					if firstContent != "" {
 						// It seems that Microsoft’s SDK has encountered this bug before.
-						logger.Error("[stt] The STT SDK returned content that was not as expected, it is likely a bug in the SDK")
+						logger.ErrorContext(ctx, "[stt] The STT SDK returned content that was not as expected, it is likely a bug in the SDK")
 					}
 					if cfg.InterruptStage == config.AfterSTT {
-						interrupt.ReleaseCtxNode(sText.ctxNode)
+						sText.ctxNode.ReleaseCtxNode()
 					}
-					logger.Info("[stt] STT returned an empty string", sentencelifecycle.Tag(sid, sgid))
+					logger.InfoContext(ctx, "[stt] STT returned an empty string")
 					return
 				}
-				logger.Info("[stt]<duration> Received recognized text from STT.", slog.Int64("dur", time.Since(sendEnd).Milliseconds()), slog.String("text", r.Text), sentencelifecycle.Tag(sid, sgid))
+				logger.InfoContext(ctx, "[stt]<duration> Received recognized text from STT.", slog.Int64("dur", time.Since(sendEnd).Milliseconds()), slog.String("text", r.Text))
 				break
 			}
 		}
@@ -203,39 +184,37 @@ func (e *Engine) groupText(sentenceTextQueue chan *sentenceText, sentenceTextGro
 	for {
 		/* get one stt recognized text */
 		sText, ok := <-sentenceTextQueue
+		ctx := sText.ctxNode.Ctx
 		if !ok {
-			logger.Info("[stt] STT has been closed.")
+			logger.InfoContext(ctx, "[stt] STT has been closed.")
 			return
 		}
-		sid, sgid := sText.sid, sText.sgid
-		if sid == sgid { // means it‘s a new group, so reset concatenatedText
+		sMetaData := sentence.GetMetaData(ctx)
+		if sMetaData.Sid == sMetaData.Sgid { // means it‘s a new group, so reset concatenatedText
 			concatenatedText = ""
 		}
 
 		/* concat stt recognized texts that belongs to a group  */
-		ctx := sText.ctxNode.Ctx
 		select {
 		case <-time.After(time.Second * 5):
-			logger.Info("[stt] Timeout waiting for STT to retrieve recognition result: 5 seconds.", sentencelifecycle.Tag(sid, sgid))
+			logger.InfoContext(ctx, "[stt] Timeout waiting for STT to retrieve recognition result: 5 seconds.")
 			continue
 		case fullText := <-sText.fullText:
 			if fullText == "" {
 				continue
 			}
 			concatenatedText = concatenatedText + fullText
-			logger.Info("[stt] Text after concatenation", slog.String("text", concatenatedText), sentencelifecycle.Tag(sid, sgid))
+			logger.InfoContext(ctx, "[stt] Text after concatenation", slog.String("text", concatenatedText))
 		}
 
 		/* check if interrupted */
 		if errors.Is(ctx.Err(), context.Canceled) {
-			logger.Info("[stt] After collecting the STT results, the sentence was interrupted.", sentencelifecycle.Tag(sid, sgid))
+			logger.InfoContext(ctx, "[stt] After collecting the STT results, the sentence was interrupted.")
 			continue
 		}
 
 		sentenceTextGroupQueue <- &sentenceGroupText{
-			ctx:  sText.ctxNode.Ctx,
-			sid:  sid,
-			sgid: sgid,
+			ctx:  ctx,
 			text: concatenatedText,
 		}
 	}

@@ -29,7 +29,7 @@ func NewQWen(modelName string, clauseMode config.ClauseMode) *QWen {
 	}
 }
 
-func (qw *QWen) StreamAsk(ctx context.Context, sid int64, llmMsgs []dialogctx.Message) (res <-chan string, err error) {
+func (qw *QWen) StreamAsk(ctx context.Context, llmMsgs []dialogctx.Message) (res <-chan string, err error) {
 	var qwenMsgs []qwenCli.Msg
 	for _, m := range llmMsgs {
 		qwenMsgs = append(qwenMsgs, qwenCli.Msg{
@@ -39,22 +39,22 @@ func (qw *QWen) StreamAsk(ctx context.Context, sid int64, llmMsgs []dialogctx.Me
 	}
 
 	startTime := time.Now()
-	readCloser, err := qwenCli.Inst().StreamAsk(ctx, qw.Model, qwenMsgs, sid)
+	readCloser, err := qwenCli.Inst().StreamAsk(ctx, qw.Model, qwenMsgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to request qwen in a streaming manner.%w", err)
 	}
 
 	result := make(chan string, 1000)
-	qw.streamRead(sid, readCloser, result, startTime)
+	qw.streamRead(ctx, readCloser, result, startTime)
 
 	return result, nil
 }
 
-func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result chan<- string, startTime time.Time) {
+func (qw *QWen) streamRead(ctx context.Context, readCloser io.ReadCloser, result chan<- string, startTime time.Time) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("[panic]", slog.Any("panic msg", r), slog.Int64("sid", questionID))
+				logger.ErrorContext(ctx, "[panic]", slog.Any("panic msg", r))
 				return
 			}
 			close(result)
@@ -65,11 +65,11 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 		defer func() {
 			err := scanner.Err()
 			if errors.Is(err, context.Canceled) {
-				logger.Info("[llm] Interrupted while reading the qwen result in a streaming manner.", slog.String("msg", err.Error()), slog.Int64("sid", questionID))
+				logger.InfoContext(ctx, "[llm] Interrupted while reading the qwen result in a streaming manner.", slog.String("msg", err.Error()))
 				return
 			}
 			if err != nil {
-				logger.Error("scanner.Err()", slog.Any("err", err), slog.Int64("sid", questionID))
+				logger.ErrorContext(ctx, "scanner.Err()", slog.Any("err", err))
 			}
 		}()
 
@@ -84,7 +84,7 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 				data = strings.TrimSpace(data)
 				var respData qwenCli.SSEResp
 				if err := json.Unmarshal([]byte(data), &respData); err != nil {
-					logger.Error("[llm] Failed to parse the data from the SSE event", slog.Any("err", err), slog.Int64("sid", questionID))
+					logger.ErrorContext(ctx, "[llm] Failed to parse the data from the SSE event", slog.Any("err", err))
 					return
 				}
 				choices := respData.Output.Choices
@@ -94,29 +94,29 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 				}
 				content := choices[0].Message.Content
 
-				logger.Info("[llm] Received content returned by the LLM", slog.Int64("sid", questionID), slog.String("content", choices[0].Message.Content))
+				logger.InfoContext(ctx, "[llm] Received content returned by the LLM", slog.String("content", choices[0].Message.Content))
 				if content == "" {
-					logger.Info("[llm] Returned empty content", slog.Int64("sid", questionID))
+					logger.InfoContext(ctx, "[llm] Returned empty content")
 					continue
 				}
 				if isFirstContent {
-					logger.Info("[llm] Time taken to receive the first content", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", questionID))
+					logger.InfoContext(ctx, "[llm] Time taken to receive the first content", slog.Int64("dur", time.Since(startTime).Milliseconds()))
 					isFirstContent = false
 				}
 
 				switch qw.ClauseMode {
 				case config.NoClause:
 					if isFirstSegment {
-						logger.Info("[llm] Time taken to receive the first segment", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", questionID))
+						logger.InfoContext(ctx, "[llm] Time taken to receive the first segment", slog.Int64("dur", time.Since(startTime).Milliseconds()))
 					}
 					result <- content
 				case config.PunctuationClause:
-					segment, send, interrut := qw.SetSegmentByPunctuation(questionID, content, seg, result, false)
+					segment, send, interrut := qw.SetSegmentByPunctuation(ctx, content, seg, result, false)
 					if interrut {
 						return
 					}
 					if send && isFirstSegment {
-						logger.Info("[llm] Time taken to receive the first segment", slog.Int64("dur", time.Since(startTime).Milliseconds()), slog.Int64("sid", questionID))
+						logger.Info("[llm] Time taken to receive the first segment", slog.Int64("dur", time.Since(startTime).Milliseconds()))
 						isFirstSegment = false
 					}
 					seg = segment
@@ -124,13 +124,13 @@ func (qw *QWen) streamRead(questionID int64, readCloser io.ReadCloser, result ch
 			}
 		}
 		if qw.ClauseMode == config.PunctuationClause {
-			qw.SetSegmentByPunctuation(questionID, "", seg, result, true)
+			qw.SetSegmentByPunctuation(ctx, "", seg, result, true)
 		}
 
 	}()
 }
 
-func (qw *QWen) SetSegmentByPunctuation(sid int64, streamText, seg string, result chan<- string, end bool) (segment string, send bool, interrupt bool) {
+func (qw *QWen) SetSegmentByPunctuation(ctx context.Context, streamText, seg string, result chan<- string, end bool) (segment string, send bool, interrupt bool) {
 	if end && seg != "" {
 		result <- seg
 		return "", true, false
@@ -141,7 +141,7 @@ func (qw *QWen) SetSegmentByPunctuation(sid int64, streamText, seg string, resul
 		if clause.CharMap[char] {
 			result <- seg
 			send = true
-			logger.Info("[llm] Generate segment", slog.Int64("sid", sid), slog.String("seg", seg))
+			logger.InfoContext(ctx, "[llm] Generate segment", slog.String("seg", seg))
 			seg = ""
 		}
 	}

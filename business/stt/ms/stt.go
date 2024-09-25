@@ -1,10 +1,10 @@
 package ms
 
 import (
+	"context"
 	"fmt"
 	"go-aigc-agent-demo/business/stt/common"
 	"go-aigc-agent-demo/pkg/logger"
-	"log/slog"
 )
 
 type LanguageCheckMode int
@@ -37,17 +37,16 @@ func NewConfig(setLog bool, languageCheckMode int, autoAudioCheckLanguage []stri
 }
 
 type STT struct {
-	SID    int64
+	ctx    context.Context
 	cfg    *Config
 	client *client
 }
 
-func NewSTT(sid int64, cfg *Config) (*STT, error) {
+func NewSTT(ctx context.Context, cfg *Config) (*STT, error) {
 	stt := &STT{
-		SID: sid,
 		cfg: cfg,
 	}
-	c, err := newClient(sid, cfg)
+	c, err := newClient(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("[newClient]%v", err)
 	}
@@ -58,7 +57,7 @@ func NewSTT(sid int64, cfg *Config) (*STT, error) {
 func (stt *STT) Send(chunk []byte, end bool) error {
 	if end {
 		stt.client.sttInputStream.CloseStream() // will trigger sessionStoppedHandler
-		logger.Info("[stt] Send stop pushing stream signal ", slog.Int64("sid", stt.SID))
+		logger.InfoContext(stt.ctx, "[stt] Send stop pushing stream signal")
 		return nil
 	}
 	return stt.client.pumpChunkIntoStream(chunk)
