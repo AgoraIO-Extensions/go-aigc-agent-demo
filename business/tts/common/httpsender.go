@@ -28,7 +28,7 @@ func NewHttpSender(sid int64, con int, askFunc StreamAsk) *HttpSender {
 			AudioChan: make(chan []byte, 1000),
 		},
 	}
-	sender.sentence.mergeSegments() // Asynchronously merge the audio of each segment under the Sentence
+	go sender.sentence.mergeSegments() // Asynchronously merge the audio of each segment under the Sentence
 	return sender
 }
 

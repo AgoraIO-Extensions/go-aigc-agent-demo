@@ -128,6 +128,31 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 	var sendEnd time.Time
 
 	go func() {
+		for {
+			chunk, ok := <-sentenceAudio.audio
+			if !ok {
+				logger.Error("[stt] Unreachable code")
+				break
+			}
+			if chunk.Status == filter.SpeakToMute {
+				if dur := time.Since(chunk.Time).Milliseconds(); dur > 10 {
+					logger.Warn("[stt]<duration> The audio chunk took more than 10ms from VAD output to STT input.", slog.Int64("dur", dur), sentencelifecycle.Tag(sid, sgid))
+				}
+				sendEnd = time.Now()
+				if err = sttClient.Send(nil, true); err != nil {
+					logger.Error("[stt] Failed to send the stop command to STT.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+					return
+				}
+				break
+			}
+			if err = sttClient.Send(chunk.Data, false); err != nil {
+				logger.Error("[stt] Failed to send chunk to STT.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
+				return
+			}
+		}
+	}()
+
+	go func() {
 		cfg := config.Inst()
 		sttResult := sttClient.GetResult()
 		var firstContent string
@@ -170,29 +195,6 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 			}
 		}
 	}()
-
-	for {
-		chunk, ok := <-sentenceAudio.audio
-		if !ok {
-			logger.Error("[stt] Unreachable code")
-			break
-		}
-		if chunk.Status == filter.SpeakToMute {
-			if dur := time.Since(chunk.Time).Milliseconds(); dur > 10 {
-				logger.Warn("[stt]<duration> The audio chunk took more than 10ms from VAD output to STT input.", slog.Int64("dur", dur), sentencelifecycle.Tag(sid, sgid))
-			}
-			sendEnd = time.Now()
-			if err = sttClient.Send(nil, true); err != nil {
-				logger.Error("[stt] Failed to send the stop command to STT.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
-				return
-			}
-			break
-		}
-		if err = sttClient.Send(chunk.Data, false); err != nil {
-			logger.Error("[stt] Failed to send chunk to STT.", slog.Any("err", err), sentencelifecycle.Tag(sid, sgid))
-			return
-		}
-	}
 }
 
 // groupText 将句子文本分组，同一组的句子文本会拼接到一起

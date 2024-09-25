@@ -19,20 +19,18 @@ type Sentence struct {
 }
 
 func (s *Sentence) mergeSegments() {
-	go func() {
-		defer close(s.AudioChan)
-		for {
-			seg, ok := <-s.SegChan
-			if !ok {
-				return
-			}
-			for {
-				aud, ok := <-seg.AudioChan
-				if !ok {
-					break
-				}
-				s.AudioChan <- aud
-			}
+	defer close(s.AudioChan)
+	for {
+		seg, ok := <-s.SegChan
+		if !ok {
+			return
 		}
-	}()
+		for {
+			aud, ok := <-seg.AudioChan
+			if !ok {
+				break
+			}
+			s.AudioChan <- aud
+		}
+	}
 }
