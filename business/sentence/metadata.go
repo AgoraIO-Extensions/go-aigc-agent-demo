@@ -24,7 +24,10 @@ func LogHook(ctx context.Context, record *slog.Record) {
 	}
 }
 
-// GetMetaData when calling GetMetaData function, you need to ensure that the ctx contains *MetaData; otherwise, it will panic
 func GetMetaData(ctx context.Context) *MetaData {
-	return ctx.Value(logger.SentenceMetaData).(*MetaData)
+	metaData := ctx.Value(logger.SentenceMetaData)
+	if metaData == nil {
+		return nil
+	}
+	return metaData.(*MetaData)
 }

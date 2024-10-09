@@ -19,13 +19,15 @@ type sentenceAudio struct {
 }
 
 type sentenceText struct {
-	ctxNode  *interrupt.CtxNode
-	fullText chan string
+	ctxNode    *interrupt.CtxNode
+	finishSend chan struct{}
+	sendFailed chan struct{}
+	fullText   chan string
 }
 
 type sentenceGroupText struct {
 	ctx  context.Context
-	text string // 当前group下所有文本的拼接值
+	text string // the concatenated value of all texts under the current group
 }
 
 func (e *Engine) ProcessSTT(input <-chan *filter.Chunk, output chan *sentenceGroupText) {
@@ -37,8 +39,10 @@ func (e *Engine) ProcessSTT(input <-chan *filter.Chunk, output chan *sentenceGro
 		for {
 			sAudio := <-sentenceAudioQueue
 			sText := &sentenceText{
-				ctxNode:  sAudio.ctxNode,
-				fullText: make(chan string, 1),
+				ctxNode:    sAudio.ctxNode,
+				finishSend: make(chan struct{}, 1),
+				sendFailed: make(chan struct{}, 1),
+				fullText:   make(chan string, 1),
 			}
 			sentenceTextQueue <- sText
 			e.sendToSTT(sAudio, sText)
@@ -48,7 +52,7 @@ func (e *Engine) ProcessSTT(input <-chan *filter.Chunk, output chan *sentenceGro
 	e.groupText(sentenceTextQueue, output)
 }
 
-// groupAudio 将流式音频分开为句子音频，并将将句子音频分组（sgid）
+// groupAudio split the streaming audio into sentence audio and group the sentence audio (sgid).
 func (e *Engine) groupAudio(streamAudioQueue <-chan *filter.Chunk, sentenceAudioQueue chan<- sentenceAudio) {
 	var (
 		cfg           = config.Inst()
@@ -97,7 +101,7 @@ func (e *Engine) groupAudio(streamAudioQueue <-chan *filter.Chunk, sentenceAudio
 	}
 }
 
-// sendToSTT 将句子音频发送给stt，并依据stt返回结果进行打断
+// sendToSTT send sentence audio to STT and interrupt based on the STT results
 func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 	ctx := sText.ctxNode.Ctx
 	sttClient, err := e.sttFactory.CreateSTT(ctx)
@@ -110,23 +114,22 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 
 	go func() {
 		for {
-			chunk, ok := <-sentenceAudio.audio
-			if !ok {
-				logger.ErrorContext(ctx, "[stt] Unreachable code")
-				break
-			}
+			chunk := <-sentenceAudio.audio
 			if chunk.Status == filter.SpeakToMute {
 				if dur := time.Since(chunk.Time).Milliseconds(); dur > 10 {
 					logger.WarnContext(ctx, "[stt]<duration> The audio chunk took more than 10ms from VAD output to STT input.", slog.Int64("dur", dur))
 				}
 				sendEnd = time.Now()
 				if err = sttClient.Send(nil, true); err != nil {
+					sText.sendFailed <- struct{}{}
 					logger.ErrorContext(ctx, "[stt] Failed to send the stop command to STT.", slog.Any("err", err))
 					return
 				}
+				sText.finishSend <- struct{}{}
 				break
 			}
 			if err = sttClient.Send(chunk.Data, false); err != nil {
+				sText.sendFailed <- struct{}{}
 				logger.ErrorContext(ctx, "[stt] Failed to send chunk to STT.", slog.Any("err", err))
 				return
 			}
@@ -138,12 +141,7 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 		sttResult := sttClient.GetResult()
 		var firstContent string
 		for {
-			r, ok := <-sttResult
-			if !ok {
-				logger.ErrorContext(ctx, "[stt] Unreachable code")
-				break
-			}
-
+			r := <-sttResult
 			if cfg.InterruptStage == config.AfterSTT && firstContent == "" && r.Text != "" {
 				sText.ctxNode.Interrupt()
 				logger.InfoContext(ctx, "[stt] do interrupt")
@@ -178,26 +176,31 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 	}()
 }
 
-// groupText 将句子文本分组，同一组的句子文本会拼接到一起
+// groupText group sentence texts, and sentences in the same group will be concatenated together
 func (e *Engine) groupText(sentenceTextQueue chan *sentenceText, sentenceTextGroupQueue chan *sentenceGroupText) {
 	var concatenatedText string
 	for {
 		/* get one stt recognized text */
-		sText, ok := <-sentenceTextQueue
+		sText := <-sentenceTextQueue
 		ctx := sText.ctxNode.Ctx
-		if !ok {
-			logger.InfoContext(ctx, "[stt] STT has been closed.")
-			return
-		}
 		sMetaData := sentence.GetMetaData(ctx)
 		if sMetaData.Sid == sMetaData.Sgid { // means it‘s a new group, so reset concatenatedText
 			concatenatedText = ""
 		}
 
-		/* concat stt recognized texts that belongs to a group  */
+		/* wait for sAudio to finish sending */
+		select {
+		case <-sText.sendFailed:
+			logger.ErrorContext(ctx, "[stt] sText.sendFailed")
+			continue
+		case <-sText.finishSend:
+			break
+		}
+
+		/* concat stt recognized texts that belongs to a group */
 		select {
 		case <-time.After(time.Second * 5):
-			logger.InfoContext(ctx, "[stt] Timeout waiting for STT to retrieve recognition result: 5 seconds.")
+			logger.ErrorContext(ctx, "[stt] Timeout waiting for STT to retrieve recognition result: 5 seconds.")
 			continue
 		case fullText := <-sText.fullText:
 			if fullText == "" {

@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"go-aigc-agent-demo/business/engine"
 	"go-aigc-agent-demo/business/sentence"
-	"go-aigc-agent-demo/business/workerid"
 	"go-aigc-agent-demo/clients/alitts"
 	qwenCli "go-aigc-agent-demo/clients/qwen"
 	"go-aigc-agent-demo/config"
@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 )
 
@@ -32,7 +33,7 @@ func main() {
 
 	// init log
 	logger.AddContextHook(sentence.LogHook)
-	logger.Init(cfg.Log.File, cfg.Log.Level, map[any]any{"uuid": workerid.UUID})
+	logger.Init(cfg.Log.File, cfg.Log.Level, map[any]any{"uuid": strings.Join(strings.Split(uuid.New().String(), "-"), "")})
 	logger.Info(fmt.Sprintf("buildTimeStamp:%s, config:%+v", buildTimeStamp, cfg))
 
 	if err = initDependency(cfg); err != nil {

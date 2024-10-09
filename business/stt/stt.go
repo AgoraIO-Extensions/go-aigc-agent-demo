@@ -57,7 +57,7 @@ func (f *Factory) CreateSTT(ctx context.Context) (STT, error) {
 		if err != nil {
 			return nil, fmt.Errorf("[ms.NewSTT]%w", err)
 		}
-		logger.DebugContext(ctx, "[stt]<duration> ms.NewSTT", slog.Int64("dur", time.Since(start).Milliseconds()))
+		logger.InfoContext(ctx, "[stt]<duration> ms.NewSTT", slog.Int64("dur", time.Since(start).Milliseconds()))
 		return msSTT, nil
 	default:
 		return nil, fmt.Errorf("incorrect vendorname parameter")

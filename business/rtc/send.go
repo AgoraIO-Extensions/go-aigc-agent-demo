@@ -1,6 +1,7 @@
 package rtc
 
 import (
+	"context"
 	"fmt"
 	"go-aigc-agent-demo/pkg/agora-go-sdk/go_wrapper/agoraservice"
 	"time"
@@ -9,6 +10,10 @@ import (
 func (r *RTC) SendPcm(chunk []byte) error {
 	if len(chunk) != 320 {
 		return fmt.Errorf("len(chunk) != 320")
+	}
+
+	if err := r.sendLimiter.Wait(context.Background()); err != nil {
+		return fmt.Errorf("[sendLimiter.Wait]%w", err)
 	}
 
 	frame := &agoraservice.PcmAudioFrame{

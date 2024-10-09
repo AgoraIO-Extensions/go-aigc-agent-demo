@@ -3,7 +3,6 @@ package ali
 import (
 	"encoding/json"
 	"fmt"
-	"go-aigc-agent-demo/business/sentence"
 	"go-aigc-agent-demo/business/stt/common"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
@@ -115,8 +114,7 @@ func (c *conn) onCompleted(jsonStr string, _ interface{}) {
 }
 
 func (c *conn) onClose(_ interface{}) {
-	sid := sentence.GetMetaData(c.ctx).Sid
-	if sid != 0 {
+	if c.ctx != nil {
 		logger.InfoContext(c.ctx, fmt.Sprintf("onClose"))
 	}
 }

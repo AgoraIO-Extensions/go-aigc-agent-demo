@@ -3,6 +3,7 @@ package rtc
 import (
 	"fmt"
 	"go-aigc-agent-demo/pkg/agora-go-sdk/go_wrapper/agoraservice"
+	"golang.org/x/time/rate"
 	"strings"
 )
 
@@ -26,11 +27,12 @@ type InitParams struct {
 }
 
 type RTC struct {
-	initParams *InitParams
-	connConfig *agoraservice.RtcConnectionConfig
-	conn       *agoraservice.RtcConnection
-	pcmSender  *agoraservice.PcmSender
-	streamID   int
+	initParams  *InitParams
+	connConfig  *agoraservice.RtcConnectionConfig
+	conn        *agoraservice.RtcConnection
+	pcmSender   *agoraservice.PcmSender
+	sendLimiter *rate.Limiter
+	streamID    int
 }
 
 func NewRTC(appid, token, channelName, userId, region string) *RTC {
@@ -72,7 +74,11 @@ func NewRTC(appid, token, channelName, userId, region string) *RTC {
 		AreaCode:    areaCode,
 	}
 
-	return &RTC{initParams: params, connConfig: connCfg}
+	return &RTC{
+		initParams:  params,
+		connConfig:  connCfg,
+		sendLimiter: rate.NewLimiter(100, 18),
+	}
 }
 
 func (r *RTC) Connect() error {

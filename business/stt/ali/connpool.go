@@ -1,7 +1,6 @@
 package ali
 
 import (
-	"context"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
 	"sync"
@@ -25,7 +24,7 @@ func initConnPool(size int, cfg *Config) (*connPool, error) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			c, err := newConn(cfg, context.Background())
+			c, err := newConn(cfg, nil)
 			if err != nil {
 				logger.Error("[stt]Failed to initialize the connection pool for ali-stt", slog.Any("err", err), slog.Int("i", i))
 			}
@@ -57,7 +56,7 @@ func (p *connPool) generateConn() {
 			for i := 0; i < concurrency; i++ {
 				go func() {
 					start := time.Now()
-					c, err := newConn(p.cfg, context.Background())
+					c, err := newConn(p.cfg, nil)
 					if err != nil {
 						logger.Error("[stt]Failed to asynchronously create connection for ali-stt", slog.Any("err", err))
 						return

@@ -39,3 +39,6 @@
 {"time":"2024-09-25 21:34:41.800 UTC+8","level":"INFO","msg":"sss","id":1,"caller":"tests/main.go:16"}
 {"time":"2024-09-25 21:34:41.801 UTC+8","level":"INFO","msg":"sss","id":1,"caller":"tests/main.go:17"}
 {"time":"2024-09-25 21:34:41.801 UTC+8","level":"INFO","msg":"sss","id":1,"caller":"tests/main.go:18"}
+{"time":"2024-09-26 10:38:50.309 UTC+8","level":"INFO","msg":"sss","id":1,"caller":"tests/main.go:16"}
+{"time":"2024-09-26 10:38:50.310 UTC+8","level":"INFO","msg":"sss","id":1,"caller":"tests/main.go:17"}
+{"time":"2024-09-26 10:38:50.310 UTC+8","level":"INFO","msg":"sss","id":1,"caller":"tests/main.go:18"}

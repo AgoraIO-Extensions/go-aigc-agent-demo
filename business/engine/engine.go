@@ -28,29 +28,29 @@ func InitEngine() (*Engine, error) {
 
 	var err error
 
-	// 初始化「vad」
+	// init「vad」
 	e.filter = filter.NewFilter(sentence.FirstSid, cfg.Filter.Vad.StartWin, cfg.Filter.Vad.StopWin)
 
-	// 初始化「rtc」
+	// init「rtc」
 	e.rtc = rtc.NewRTC(cfg.RTC.AppID, "", cfg.RTC.ChannelName, cfg.RTC.UserID, cfg.RTC.Region)
 	logger.Info("RTC initialization succeeded")
 
-	// 初始化「stt」
+	// init「stt」
 	if e.sttFactory, err = stt.NewFactory(cfg.STT.Select, cfg.STT); err != nil {
 		return nil, fmt.Errorf("[stt.NewFactory]%v", err)
 	}
 	logger.Info("STT initialization succeeded")
 
-	// 初始化 tts
+	// init tts
 	if e.ttsFactory, err = tts.NewFactory(cfg.TTS.Select, 2); err != nil {
 		return nil, fmt.Errorf("初始化tts失败.%v", err)
 	}
 	logger.Info("TTS initialization succeeded")
 
-	// 初始化 [exit]
+	// init [exit]
 	e.exitWrapper = exit.NewExitManager(cfg.StartTime, cfg.MaxLifeTime)
 
-	// 初始化「llm」
+	// init「llm」
 	e.llm, err = llm.NewLLM(cfg.LLM.ModelSelect, cfg.LLM.Prompt.Generate(), &cfg.LLM)
 	if err != nil {
 		return nil, fmt.Errorf("[llm.NewLLM]%v", err)
@@ -60,13 +60,13 @@ func InitEngine() (*Engine, error) {
 }
 
 func (e *Engine) Run() error {
-	// 异步地：达到最大生命后期后自动退出
+	// asynchronously: Exit automatically after reaching the maximum lifetime
 	e.exitWrapper.HandlerMaxLifeTime()
 
-	// 注册用户离开事件处理函数
+	// Register user leave event handler
 	e.rtc.SetOnUserLeft(e.exitWrapper.OnUserLeft)
 
-	// 注册从rtc接收到的音频处理函数
+	// Register handler for audio received from RTC
 	e.rtc.SetOnReceiveAudio(e.filter.OnRcvRTCAudio)
 
 	// stt
@@ -85,7 +85,7 @@ func (e *Engine) Run() error {
 	// send to rtc
 	go e.ProcessSendRTC(ttsOutput)
 
-	// rtc建立连接
+	// connect to rtc
 	if err := e.rtc.Connect(); err != nil {
 		return fmt.Errorf("[rtc.Connect]%v", err)
 	}
