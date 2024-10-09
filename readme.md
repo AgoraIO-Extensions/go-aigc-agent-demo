@@ -44,8 +44,8 @@
             - **ali/**: 访问阿里tts的业务实现逻辑（ps:在同级目录下可以扩展其他vendor业务实现逻辑）
             - **sentence.go**: 主要是整合同一个sentence下的各个segment的音频
     - **rtc/**: 使用rtc推拉流、发送datastream等的业务逻辑层
-    - **sentencelifecycle/**: sentence生命周期管理（属于业务层的全局的依赖模块）
-    - **workerid**: 唯一表示一个agent进程，用于打印日志（属于业务层的全局的依赖模块）
+    - **sentence/**: 用于记录每一个sentence的一些元数据
+    - **interrupt**: 打断逻辑的算法
 - **clients/**: http客户端请求响应模块，与业务无关，只是单纯的http接口访问逻辑
   - **alitts/**: 请求阿里tts的接口
     - **client.go**: 初始化访问阿里tts域名的client，配置http连接池参数（降低并发请求情况下的同步建立概率）、发起预热连接（提前建立长连接，避免首次请求时同步建连）
@@ -67,20 +67,14 @@
 ### 概念/功能介绍
 #### sentence
 - sentence在代码中的意思是一个完整的句子，一段音频、一个文本句子都可以叫sentence
-- 同一时间，程序中只会处理一个sentence（这个由「打断功能」来保障）
+- 同一时间，stt下游的模块只会处理一个sentence（这个由「打断功能」来保障）
 #### sid、sgid
-sid是指对一个sentence的唯一标识。如果对几个sentence划分到一个group，那么这个group的唯一标识就是sgid
+sid是指对一个sentence的唯一标识。如果对几个sentence划分到一个group，那么这个group的唯一标识就是sgid。打印日志时会加上这两个标识。
 #### 打断功能
-- 含义：打断是指将运行中的sentence处理逻辑给停止（实际是指stt下游的逻辑，在stt这一层时可以多个sentence生命走起并存的）
-- 触发条件：只要是filter模块识别除了新的sentence，就会立即调用打断函数，触发打断
-#### 断句、并句功能
-为了描述这两个功能的含义，举一个例子：
-假设此时filter模块返回了两段sentence音频分别为：sentence_i 和 sentence_i+1，因此它们是时间上连续的，并且 sentence_i+1 在时间上是靠后的。
-如果，在接收到 sentence_i+1 的head chunk时，sentence_i的处理逻辑已经走到了往rtc发送回复音频阶段了，那么此时会触发「断句」，否则，会触发「并句」逻辑。
-- 断句：就是 sentence_i+1 到来时，立即打断 sentence_i 的处理逻辑，然后进入 sentence_i+1 的处理逻辑
-- 并句：就是 sentence_i+1 到来时，立即打断 sentence_i 的处理逻辑，然后将 sentence_i 的stt识别文本和 sentence_i+1 的stt识别文本合并到一起，
-然后一起作为一个sentence的逻辑来处里。此时，sid是 sentence_i+1 的sid，sgid是 sentence_i 的sgid（根据递推关系，如果sentence_i也是和sentence_i-1并句后的结果，那么sgid就是sentence_i-1的sid）
-- 断句和并句的一个共同点：都会触发「打断功能」
+- 含义：后来的sentence会执行打断函数，从而停止先来的sentence的执行。
+- 触发条件：目前有两个可选触发条件：1.识别到新的sentence音频到来时立即打断。2.stt识别到新的sentence文本第一个字后立即打断。
+#### 音频分句
+- 含义：filter输出的音频chunk带有(MuteToSpeak/Speaking/SpeakToMute等)标记，依据这些标记可以判断filter对原始音频的分句，stt就会拿着这些分好的音频句子进行分开处理
 #### stt采用多实例模式
 一般stt的demo代码都是提供了一个实例（一个连接），然后将音频传入到stt中，由stt来负责语音分句，并由回调函数来返回识别到的句子，但是当前项目并不是。
 - 区别：
