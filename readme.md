@@ -74,7 +74,16 @@ sid是指对一个sentence的唯一标识。如果对几个sentence划分到一�
 - 含义：后来的sentence会执行打断函数，从而停止先来的sentence的执行。
 - 触发条件：目前有两个可选触发条件：1.识别到新的sentence音频到来时立即打断。2.stt识别到新的sentence文本第一个字后立即打断。
 #### 音频分句
-- 含义：filter输出的音频chunk带有(MuteToSpeak/Speaking/SpeakToMute等)标记，依据这些标记可以判断filter对原始音频的分句，stt就会拿着这些分好的音频句子进行分开处理
+- 含义：filter输出的音频chunk带有(MuteToSpeak/Speaking/SpeakToMute等)标记，依据这些标记可以判断filter对原始音频的分句，例如一段完整音频被分解为「sAudio1,sAudio2,sAudio3...」
+- 意义：音频分句后，stt可以并发消费多段音频
+#### 音频分组
+- 含义：音频分句的「sAudio1,sAudio2,sAudio3...」会依据一定的规则被分组，例如 「sAudio1,sAudio2」被分为一组，「sAudio3」被分为一组。这个就叫音频分组。
+- 性质：分组后的音频的sgid是相同的；属于同一音频组的音频在经过stt转话为文本后也属于同一组；同一组的文本会拼接到一起作为一个整体传输给llm等下游模块
+- 意义：原始说话人声可能存在停顿，停顿就会触发音频分句，例如分为「sAudio1,sAudio2」：
+  - 停顿很短：那么希望是「sAudio1,sAudio2」的处理应该按一句话来处理，所以需要分到同一组。
+  - 停顿太长：那么就应该是说话者已经不关心 sAudio1，所以就不会把 sAudio1和sAudio2分到一组。
+#### 文本拼接
+-含义：在「音频分组」中已经提到了“属于同一音频组的音频在经过stt转话为文本后也属于同一组；同一组的文本会拼接到一起作为一个整体传输给llm等下游模块”，这个就是文本拼接。
 #### stt采用多实例模式
 一般stt的demo代码都是提供了一个实例（一个连接），然后将音频传入到stt中，由stt来负责语音分句，并由回调函数来返回识别到的句子，但是当前项目并不是。
 - 区别：
@@ -107,4 +116,5 @@ v2.0：支持阿里/微软
 v2.1: 优化stt/tts初始化逻辑   
 v2.2: 微软语音服务兼容 ubuntu 18.04、20.04、22.04、24.04   
 v2.3: 增加vad参数，控制人声识别敏感度   
-v2.4: 1.打断时机可配置，支持在filter或者是stt模块进行打断，以适应不同的客户场景需求。2. sentence分组现在支持两种策略：dependOnRTCSend/dependOnTime
+v2.4: 1.打断时机可配置，支持在filter或者是stt模块进行打断，以适应不同的客户场景需求。2. sentence分组现在支持两种策略：dependOnRTCSend/dependOnTime   
+v2.5: 1. engine下的数据模块划分更清晰；2. sid、sgid等sentence元信息隐藏到了ctx中，会在打日志时自动补充到日志tag中；3. 支持两种打断策略（时间间隔是否达到一个阈值 和 sentence是否直行道往rtc发送的阶段）4. 往rtc发音频的算法改为了临牌桶算法，上层业务将不需要关心发送
