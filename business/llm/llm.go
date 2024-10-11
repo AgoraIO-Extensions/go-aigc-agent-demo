@@ -8,6 +8,7 @@ import (
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
+	"time"
 )
 
 type streamClient interface {
@@ -43,6 +44,7 @@ func (l *LLM) Ask(ctx context.Context, question string) (<-chan string, error) {
 		msgs = append([]dialogctx.Message{{Role: dialogctx.SYSTEM, Content: l.prompt}}, msgs...)
 	}
 	logger.InfoContext(ctx, "[llm] question with dialog context", slog.Any("dialog_ctx", msgs))
+	startReqTime := time.Now()
 	segChan, err := l.streamClient.StreamAsk(ctx, msgs)
 	if err != nil {
 		return nil, fmt.Errorf("[streamAsk]%w", err)
@@ -51,12 +53,17 @@ func (l *LLM) Ask(ctx context.Context, question string) (<-chan string, error) {
 
 	segChanCopy := make(chan string, 1000)
 	go func() {
+		isFirstSeg := true
 		for {
 			select {
 			case seg, ok := <-segChan:
 				if !ok {
 					close(segChanCopy)
 					return
+				}
+				if isFirstSeg {
+					isFirstSeg = false
+					logger.InfoContext(ctx, "[llm]<duration> request llm ——> rev first segment", slog.Int64("dur", time.Since(startReqTime).Milliseconds()))
 				}
 				segChanCopy <- seg
 				/*
