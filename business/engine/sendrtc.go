@@ -16,6 +16,21 @@ func (e *Engine) ProcessSendRTC(input <-chan *ttsResult) {
 }
 
 func (e *Engine) sendAudioToRTC(ctx *aigcCtx.AIGCContext, audioChan <-chan []byte) {
+	if dur := time.Since(ctx.MetaData.FilterAudioTailRcvTime); dur.Milliseconds() < 1000 {
+		wait := time.Millisecond*1000 - dur
+		logger.InfoContext(ctx, "[rtc]<duration> waiting for new sentences come.", slog.Int64("dur", wait.Milliseconds()))
+		time.Sleep(wait)
+	}
+	logger.InfoContext(ctx, "[rtc] waiting for the new sentences to execute STT.")
+	select {
+	case <-ctx.Done():
+		logger.InfoContext(ctx, "[rtc] Interrupted while waiting for the new sentences to execute STT.")
+		return
+	case <-ctx.WaitNodesCancel():
+		logger.InfoContext(ctx, "[rtc] The new sentences has finished executing STT.")
+		break
+	}
+
 	firstSend := true
 	for {
 		var chunk []byte
