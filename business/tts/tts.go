@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Microsoft/cognitive-services-speech-sdk-go/common"
+	"go-aigc-agent-demo/business/aigcCtx"
 	"go-aigc-agent-demo/business/tts/ali"
 	"go-aigc-agent-demo/business/tts/ms"
 	"go-aigc-agent-demo/config"
@@ -31,7 +32,7 @@ func NewFactory(vendor config.TTSSelect, concurrence int) (*Factory, error) {
 	}
 }
 
-func (f *Factory) CreateTTS(ctx context.Context) (TTS, error) {
+func (f *Factory) CreateTTS(ctx *aigcCtx.AIGCContext) (TTS, error) {
 	switch f.Vendor {
 	case config.AliTTS:
 		return ali.NewTTS(ctx, f.concurrence), nil

@@ -1,13 +1,13 @@
 package engine
 
 import (
-	"context"
+	"go-aigc-agent-demo/business/aigcCtx"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
 )
 
 type ttsResult struct {
-	ctx   context.Context
+	ctx   *aigcCtx.AIGCContext
 	audio <-chan []byte
 }
 

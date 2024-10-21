@@ -23,11 +23,3 @@ func LogHook(ctx context.Context, record *slog.Record) {
 		record.AddAttrs(slog.Int64("sgid", sMetaData.Sgid))
 	}
 }
-
-func GetMetaData(ctx context.Context) *MetaData {
-	metaData := ctx.Value(logger.SentenceMetaData)
-	if metaData == nil {
-		return nil
-	}
-	return metaData.(*MetaData)
-}

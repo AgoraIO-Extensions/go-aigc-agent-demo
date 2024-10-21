@@ -3,12 +3,13 @@ package engine
 import (
 	"context"
 	"errors"
+	"go-aigc-agent-demo/business/aigcCtx"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
 )
 
 type llmResult struct {
-	ctx     context.Context
+	ctx     *aigcCtx.AIGCContext
 	segChan <-chan string
 }
 

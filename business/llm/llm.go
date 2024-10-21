@@ -3,8 +3,8 @@ package llm
 import (
 	"context"
 	"fmt"
+	"go-aigc-agent-demo/business/aigcCtx"
 	"go-aigc-agent-demo/business/llm/common/dialogctx"
-	"go-aigc-agent-demo/business/sentence"
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
@@ -37,9 +37,8 @@ func NewLLM(vendorName config.ModelSelect, prompt string, cfg *config.LLM) (*LLM
 	return &LLM{prompt: prompt, dCTX: dCTX, streamClient: client}, nil
 }
 
-func (l *LLM) Ask(ctx context.Context, question string) (<-chan string, error) {
-	sMetaData := sentence.GetMetaData(ctx)
-	msgs := l.dCTX.AddQuestion(question, sMetaData.Sgid) // Build and return the current context information chain.
+func (l *LLM) Ask(ctx *aigcCtx.AIGCContext, question string) (<-chan string, error) {
+	msgs := l.dCTX.AddQuestion(question, ctx.MetaData.Sgid) // Build and return the current context information chain.
 	if l.prompt != "" {
 		msgs = append([]dialogctx.Message{{Role: dialogctx.SYSTEM, Content: l.prompt}}, msgs...)
 	}
@@ -73,7 +72,7 @@ func (l *LLM) Ask(ctx context.Context, question string) (<-chan string, error) {
 					might be based on the content that has already been returned, so it is necessary to add this part of
 					the answer to dCTX in a timely manner.
 				*/
-				if err = l.dCTX.StreamAddAnswer(seg, sMetaData.Sgid); err != nil {
+				if err = l.dCTX.StreamAddAnswer(seg, ctx.MetaData.Sgid); err != nil {
 					logger.ErrorContext(ctx, "[llm] Streaming append of the answer failed.", slog.Any("err", err))
 					return
 				}

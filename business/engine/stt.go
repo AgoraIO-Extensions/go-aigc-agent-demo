@@ -3,9 +3,9 @@ package engine
 import (
 	"context"
 	"errors"
+	"go-aigc-agent-demo/business/aigcCtx"
+	"go-aigc-agent-demo/business/aigcCtx/sentence"
 	"go-aigc-agent-demo/business/filter"
-	"go-aigc-agent-demo/business/interrupt"
-	"go-aigc-agent-demo/business/sentence"
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
@@ -13,20 +13,19 @@ import (
 )
 
 type sentenceAudio struct {
-	ctxNode *interrupt.CtxNode
-	//sMetaData *sentence.MetaData
+	ctx   *aigcCtx.AIGCContext
 	audio chan *filter.Chunk
 }
 
 type sentenceText struct {
-	ctxNode    *interrupt.CtxNode
+	ctx        *aigcCtx.AIGCContext
 	finishSend chan struct{}
 	sendFailed chan struct{}
 	fullText   chan string
 }
 
 type sentenceGroupText struct {
-	ctx  context.Context
+	ctx  *aigcCtx.AIGCContext
 	text string // the concatenated value of all texts under the current group
 }
 
@@ -39,7 +38,7 @@ func (e *Engine) ProcessSTT(input <-chan *filter.Chunk, output chan *sentenceGro
 		for {
 			sAudio := <-sentenceAudioQueue
 			sText := &sentenceText{
-				ctxNode:    sAudio.ctxNode,
+				ctx:        sAudio.ctx,
 				finishSend: make(chan struct{}, 1),
 				sendFailed: make(chan struct{}, 1),
 				fullText:   make(chan string, 1),
@@ -74,21 +73,20 @@ func (e *Engine) groupAudio(streamAudioQueue <-chan *filter.Chunk, sentenceAudio
 		switch chunk.Status {
 		case filter.MuteToSpeak:
 			*prevSMetaData = *sMetaData
-			sMetaData = new(sentence.MetaData)
-			// create a CtxNode based on the root context containing sMetaData
-			ctxNode := interrupt.NewCtxNode(context.WithValue(context.Background(), logger.SentenceMetaData, sMetaData), sid)
+			sMetaData = &sentence.MetaData{Sid: sid}
+
+			ctx := aigcCtx.NewContext(context.WithValue(context.Background(), logger.SentenceMetaData, sMetaData), sMetaData)
 			if cfg.InterruptStage == config.AfterFilter {
-				ctxNode.Interrupt()
+				ctx.Interrupt()
 			}
 			sgid = Grouping(prevSMetaData, sid)
-			sMetaData.Sid = sid
 			sMetaData.Sgid = sgid
-			logger.InfoContext(ctxNode.Ctx, "[stt] Get the sentence audio head from upstream")
+			logger.InfoContext(ctx, "[stt] Get the sentence audio head from upstream")
 			audioChan = make(chan *filter.Chunk, 100)
 			audioChan <- chunk
 			sentenceAudioQueue <- sentenceAudio{
-				ctxNode: ctxNode,
-				audio:   audioChan,
+				ctx:   ctx,
+				audio: audioChan,
 			}
 		case filter.SpeakToMute:
 			logger.Info("[stt] get the sentence audio tail from upstream", slog.Int64("sid", sid), slog.Int64("sgid", sgid))
@@ -103,7 +101,7 @@ func (e *Engine) groupAudio(streamAudioQueue <-chan *filter.Chunk, sentenceAudio
 
 // sendToSTT send sentence audio to STT and interrupt based on the STT results
 func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
-	ctx := sText.ctxNode.Ctx
+	ctx := sText.ctx
 	sttClient, err := e.sttFactory.CreateSTT(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "[stt] Failed to obtain STT connection instance.", slog.Any("err", err))
@@ -143,7 +141,7 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 		for {
 			r := <-sttResult
 			if cfg.InterruptStage == config.AfterSTT && firstContent == "" && r.Text != "" {
-				sText.ctxNode.Interrupt()
+				sText.ctx.Interrupt()
 				logger.InfoContext(ctx, "[stt] do interrupt")
 			}
 
@@ -164,7 +162,7 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 						logger.ErrorContext(ctx, "[stt] The STT SDK returned content that was not as expected, it is likely a bug in the SDK")
 					}
 					if cfg.InterruptStage == config.AfterSTT {
-						sText.ctxNode.ReleaseCtxNode()
+						sText.ctx.ReleaseCtxNode()
 					}
 					logger.InfoContext(ctx, "[stt] STT returned an empty string")
 					return
@@ -182,8 +180,8 @@ func (e *Engine) groupText(sentenceTextQueue chan *sentenceText, sentenceTextGro
 	for {
 		/* get one stt recognized text */
 		sText := <-sentenceTextQueue
-		ctx := sText.ctxNode.Ctx
-		sMetaData := sentence.GetMetaData(ctx)
+		ctx := sText.ctx
+		sMetaData := ctx.MetaData
 		if sMetaData.Sid == sMetaData.Sgid { // means it‘s a new group, so reset concatenatedText
 			concatenatedText = ""
 		}

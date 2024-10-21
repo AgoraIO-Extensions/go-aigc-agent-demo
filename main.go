@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/google/uuid"
+	"go-aigc-agent-demo/business/aigcCtx/sentence"
 	"go-aigc-agent-demo/business/engine"
-	"go-aigc-agent-demo/business/sentence"
 	"go-aigc-agent-demo/clients/alitts"
 	qwenCli "go-aigc-agent-demo/clients/qwen"
 	"go-aigc-agent-demo/config"

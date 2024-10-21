@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"go-aigc-agent-demo/business/sentence"
+	"go-aigc-agent-demo/business/aigcCtx/sentence"
 	"go-aigc-agent-demo/config"
 	"time"
 )
