@@ -63,7 +63,7 @@ func (ctx *AIGCContext) ReleaseCtxNode() {
 func (ctx *AIGCContext) WaitNodesCancel() <-chan struct{} {
 	done := make(chan struct{}, 1)
 	maxSid := tail.prev.MetaData.Sid
-
+	logger.InfoContext(ctx, fmt.Sprintf("[WaitNodesCancel] the largest sid in the subsequent nodes is %d", maxSid))
 	go func() {
 		for {
 			if ctx.next == tail || ctx.next.MetaData.Sid > maxSid {

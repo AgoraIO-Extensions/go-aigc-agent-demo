@@ -140,6 +140,13 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 		var firstContent string
 		for {
 			r := <-sttResult
+			if r.Fail {
+				sText.ctx.ReleaseCtxNode()
+				sText.fullText <- ""
+				logger.ErrorContext(ctx, "[stt] Asynchronous recognition sText failed")
+				return
+			}
+
 			if cfg.InterruptStage == config.AfterSTT && firstContent == "" && r.Text != "" {
 				sText.ctx.Interrupt()
 				logger.InfoContext(ctx, "[stt] do interrupt")
@@ -149,11 +156,6 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 				firstContent = r.Text
 			}
 
-			if r.Fail {
-				sText.fullText <- ""
-				logger.ErrorContext(ctx, "[stt] Asynchronous recognition sText failed")
-				return
-			}
 			if r.Complete {
 				sText.fullText <- r.Text
 				if r.Text == "" {
@@ -161,9 +163,7 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 						// It seems that Microsoft’s SDK has encountered this bug before.
 						logger.ErrorContext(ctx, "[stt] The STT SDK returned content that was not as expected, it is likely a bug in the SDK")
 					}
-					if cfg.InterruptStage == config.AfterSTT {
-						sText.ctx.ReleaseCtxNode()
-					}
+					sText.ctx.ReleaseCtxNode()
 					logger.InfoContext(ctx, "[stt] STT returned an empty string")
 					return
 				}

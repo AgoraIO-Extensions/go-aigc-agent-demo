@@ -50,7 +50,9 @@ type payload struct {
 }
 
 func (c *conn) onTaskFailed(jsonStr string, _ interface{}) {
-	logger.ErrorContext(c.ctx, fmt.Sprintf("[onTaskFailed]:%s", jsonStr))
+	if c.ctx != nil {
+		logger.ErrorContext(c.ctx, fmt.Sprintf("[onTaskFailed]:%s", jsonStr))
+	}
 	c.result <- &common.Result{Fail: true}
 
 }

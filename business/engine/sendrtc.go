@@ -16,21 +16,6 @@ func (e *Engine) ProcessSendRTC(input <-chan *ttsResult) {
 }
 
 func (e *Engine) sendAudioToRTC(ctx *aigcCtx.AIGCContext, audioChan <-chan []byte) {
-	if dur := time.Since(ctx.MetaData.FilterAudioTailRcvTime); dur.Milliseconds() < 1000 {
-		wait := time.Millisecond*1000 - dur
-		logger.InfoContext(ctx, "[rtc]<duration> waiting for new sentences come.", slog.Int64("dur", wait.Milliseconds()))
-		time.Sleep(wait)
-	}
-	logger.InfoContext(ctx, "[rtc] waiting for the new sentences to execute STT.")
-	select {
-	case <-ctx.Done():
-		logger.InfoContext(ctx, "[rtc] Interrupted while waiting for the new sentences to execute STT.")
-		return
-	case <-ctx.WaitNodesCancel():
-		logger.InfoContext(ctx, "[rtc] The new sentences has finished executing STT.")
-		break
-	}
-
 	firstSend := true
 	for {
 		var chunk []byte
@@ -47,6 +32,9 @@ func (e *Engine) sendAudioToRTC(ctx *aigcCtx.AIGCContext, audioChan <-chan []byt
 			return
 		}
 		if firstSend {
+			if waitSubsequentNodes(ctx) {
+				return
+			}
 			firstSend = false
 			ctx.MetaData.StageSendToRTC = true
 			logger.InfoContext(ctx, "[rtc] Started sending audio to RTC.")
@@ -56,4 +44,24 @@ func (e *Engine) sendAudioToRTC(ctx *aigcCtx.AIGCContext, audioChan <-chan []byt
 			logger.ErrorContext(ctx, "[rtc] Failed to send audio to RTC.", slog.Any("err", err))
 		}
 	}
+}
+
+func waitSubsequentNodes(ctx *aigcCtx.AIGCContext) bool {
+	if dur := time.Since(ctx.MetaData.FilterAudioTailRcvTime); dur.Milliseconds() < 800 {
+		waitTime := time.Millisecond*800 - dur
+		logger.InfoContext(ctx, "[rtc]<duration> waiting for the subsequent nodes come.", slog.Int64("dur", waitTime.Milliseconds()))
+		time.Sleep(waitTime)
+	}
+	logger.InfoContext(ctx, "[rtc] waiting for the the subsequent nodes to execute STT.")
+	select {
+	case <-ctx.Done():
+		logger.InfoContext(ctx, "[rtc] interrupted while waiting for the subsequent nodes to execute STT.")
+		return true
+	case <-ctx.WaitNodesCancel():
+		logger.InfoContext(ctx, "[rtc] the subsequent nodes has finished executing STT.")
+		break
+	case <-time.After(time.Second * 2):
+		logger.WarnContext(ctx, "[rtc] timed out waiting for subsequent nodes to execute STT")
+	}
+	return false
 }

@@ -7,7 +7,7 @@ start_win = 10
 stop_win = 10
 
 [grouping]
-strategy = "dependOnTime"
+strategy = "dependOnRTCSend"
 time_threshold = 1000 # If the gap between two sentences is less than this value, they will be merged into one group.
 
 [stt]
