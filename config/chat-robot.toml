@@ -20,7 +20,7 @@ akkey = ""
 appkey = ""
 
 [stt.ms]
-speech_key = "59e03d7b53714f4d8595d7590f0854a2"
+speech_key = ""
 speech_region = "eastasia"
 language_check_mode = 0
 auto_audio_check_language = ["zh-CN", "en-US", "ja-JP"]
