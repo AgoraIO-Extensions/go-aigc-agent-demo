@@ -12,17 +12,15 @@ import (
 type StreamAsk func(ctx context.Context, text string) (io.ReadCloser, error)
 
 type HttpSender struct {
-	ctx         context.Context
-	askFunc     StreamAsk
-	concurrence chan struct{}
-	sentence    *Sentence
+	ctx      context.Context
+	askFunc  StreamAsk
+	sentence *Sentence
 }
 
-func NewHttpSender(ctx context.Context, con int, askFunc StreamAsk) *HttpSender {
+func NewHttpSender(ctx context.Context, askFunc StreamAsk) *HttpSender {
 	sender := &HttpSender{
-		ctx:         ctx,
-		askFunc:     askFunc,
-		concurrence: make(chan struct{}, con),
+		ctx:     ctx,
+		askFunc: askFunc,
 		sentence: &Sentence{
 			SegChan:   make(chan *Segment, 1000),
 			AudioChan: make(chan []byte, 1000),
@@ -45,13 +43,7 @@ func (h *HttpSender) Send(ctx context.Context, segID int, text string) {
 		Text:      text,
 	}
 	h.sentence.SegChan <- seg
-	h.concurrence <- struct{}{}
-	go func(seg *Segment) {
-		defer func() {
-			<-h.concurrence
-		}()
-		h.sendSeg(ctx, seg)
-	}(seg)
+	h.sendSeg(ctx, seg)
 	return
 }
 

@@ -19,14 +19,13 @@ type TTS interface {
 }
 
 type Factory struct {
-	Vendor      config.TTSSelect
-	concurrence int
+	Vendor config.TTSSelect
 }
 
-func NewFactory(vendor config.TTSSelect, concurrence int) (*Factory, error) {
+func NewFactory(vendor config.TTSSelect) (*Factory, error) {
 	switch vendor {
 	case config.AliTTS, config.MsTTS:
-		return &Factory{Vendor: vendor, concurrence: concurrence}, nil
+		return &Factory{Vendor: vendor}, nil
 	default:
 		return nil, fmt.Errorf("[tts] incorrect value for the vendor parameter:%s", vendor)
 	}
@@ -35,12 +34,12 @@ func NewFactory(vendor config.TTSSelect, concurrence int) (*Factory, error) {
 func (f *Factory) CreateTTS(ctx *aigcCtx.AIGCContext) (TTS, error) {
 	switch f.Vendor {
 	case config.AliTTS:
-		return ali.NewTTS(ctx, f.concurrence), nil
+		return ali.NewTTS(ctx), nil
 	case config.MsTTS:
 		c := config.Inst().TTS.MS
 		msConfig := ms.NewTTSConfig(c.SetLog, c.SpeechKey, c.SpeechRegion, c.LanguageCheckMode, c.SpecifyLanguage, c.OutputVoice, common.Riff16Khz16BitMonoPcm)
 		start := time.Now()
-		msTTS, err := ms.NewTTS(ctx, f.concurrence, msConfig)
+		msTTS, err := ms.NewTTS(ctx, msConfig)
 		if err != nil {
 			return nil, fmt.Errorf("[ms.NewTTS]%v", err)
 		}

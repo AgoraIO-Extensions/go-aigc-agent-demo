@@ -83,11 +83,11 @@ type TTS struct {
 	speechSynthesizer *speech.SpeechSynthesizer
 }
 
-func NewTTS(ctx context.Context, con int, cfg *Config) (*TTS, error) {
+func NewTTS(ctx context.Context, cfg *Config) (*TTS, error) {
 	tts := &TTS{
 		ctx: ctx,
 	}
-	tts.HttpSender = ttscommon.NewHttpSender(ctx, con, tts.streamAsk)
+	tts.HttpSender = ttscommon.NewHttpSender(ctx, tts.streamAsk)
 	var err error
 	defer func() {
 		if err != nil {
@@ -154,10 +154,6 @@ func (tts *TTS) streamAsk(ctx context.Context, text string) (io.ReadCloser, erro
 	}
 
 	return &streamReaderCloser{stream: stream}, nil
-}
-
-func (tts *TTS) Send(ctx context.Context, segmentID int, segmentContent string) {
-	tts.HttpSender.Send(ctx, segmentID, segmentContent)
 }
 
 func (tts *TTS) GetResult() <-chan []byte {
