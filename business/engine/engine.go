@@ -42,7 +42,7 @@ func InitEngine() (*Engine, error) {
 	logger.Info("STT initialization succeeded")
 
 	// init tts
-	if e.ttsFactory, err = tts.NewFactory(cfg.TTS.Select); err != nil {
+	if e.ttsFactory, err = tts.NewFactory(cfg.TTS.Select, 2); err != nil {
 		return nil, fmt.Errorf("初始化tts失败.%v", err)
 	}
 	logger.Info("TTS initialization succeeded")

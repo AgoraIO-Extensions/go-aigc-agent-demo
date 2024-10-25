@@ -19,13 +19,22 @@ type TTS interface {
 }
 
 type Factory struct {
-	Vendor config.TTSSelect
+	Vendor      config.TTSSelect
+	concurrency int
 }
 
-func NewFactory(vendor config.TTSSelect) (*Factory, error) {
+func NewFactory(vendor config.TTSSelect, concurrency int) (*Factory, error) {
+	fac := &Factory{Vendor: vendor, concurrency: concurrency}
 	switch vendor {
-	case config.AliTTS, config.MsTTS:
-		return &Factory{Vendor: vendor}, nil
+	case config.AliTTS:
+		return fac, nil
+	case config.MsTTS:
+		c := config.Inst().TTS.MS
+		if err := ms.Init(c.SetLog, c.SpeechKey, c.SpeechRegion, c.LanguageCheckMode, c.SpecifyLanguage, c.OutputVoice, common.Riff16Khz16BitMonoPcm); err != nil {
+			return nil, fmt.Errorf("[ms.Init]%w", err)
+		}
+		ms.PreConn(concurrency)
+		return fac, nil
 	default:
 		return nil, fmt.Errorf("[tts] incorrect value for the vendor parameter:%s", vendor)
 	}
@@ -34,15 +43,10 @@ func NewFactory(vendor config.TTSSelect) (*Factory, error) {
 func (f *Factory) CreateTTS(ctx *aigcCtx.AIGCContext) (TTS, error) {
 	switch f.Vendor {
 	case config.AliTTS:
-		return ali.NewTTS(ctx), nil
+		return ali.NewTTS(ctx, f.concurrency), nil
 	case config.MsTTS:
-		c := config.Inst().TTS.MS
-		msConfig := ms.NewTTSConfig(c.SetLog, c.SpeechKey, c.SpeechRegion, c.LanguageCheckMode, c.SpecifyLanguage, c.OutputVoice, common.Riff16Khz16BitMonoPcm)
 		start := time.Now()
-		msTTS, err := ms.NewTTS(ctx, msConfig)
-		if err != nil {
-			return nil, fmt.Errorf("[ms.NewTTS]%v", err)
-		}
+		msTTS := ms.NewTTS(ctx, f.concurrency)
 		logger.DebugContext(ctx, "[tts]<duration> ms.NewTTS", slog.Int64("dur", time.Since(start).Milliseconds()))
 		return msTTS, nil
 	default:

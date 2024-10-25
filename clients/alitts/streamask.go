@@ -6,11 +6,11 @@ import (
 	"io"
 )
 
-func (cli *Client) StreamAsk(ctx context.Context, text string) (io.ReadCloser, error) {
+func (cli *Client) StreamAsk(ctx context.Context, segID int, seg string) (io.ReadCloser, error) {
 	sa := cli.streamAskAPI
 	bodyContent := make(map[string]interface{})
 	bodyContent["appkey"] = sa.appkey
-	bodyContent["text"] = text
+	bodyContent["text"] = seg
 	bodyContent["token"] = sa.token
 	bodyContent["format"] = "pcm"
 	bodyContent["sample_rate"] = 16000

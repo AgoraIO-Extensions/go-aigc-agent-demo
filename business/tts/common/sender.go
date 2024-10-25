@@ -9,18 +9,20 @@ import (
 	"time"
 )
 
-type StreamAsk func(ctx context.Context, text string) (io.ReadCloser, error)
+type StreamAsk func(ctx context.Context, segID int, seg string) (io.ReadCloser, error)
 
-type HttpSender struct {
-	ctx      context.Context
-	askFunc  StreamAsk
-	sentence *Sentence
+type Sender struct {
+	ctx             context.Context
+	concurrencyChan chan struct{}
+	askFunc         StreamAsk
+	sentence        *Sentence
 }
 
-func NewHttpSender(ctx context.Context, askFunc StreamAsk) *HttpSender {
-	sender := &HttpSender{
-		ctx:     ctx,
-		askFunc: askFunc,
+func NewHttpSender(ctx context.Context, askFunc StreamAsk, con int) *Sender {
+	sender := &Sender{
+		ctx:             ctx,
+		concurrencyChan: make(chan struct{}, con),
+		askFunc:         askFunc,
 		sentence: &Sentence{
 			SegChan:   make(chan *Segment, 1000),
 			AudioChan: make(chan []byte, 1000),
@@ -31,9 +33,9 @@ func NewHttpSender(ctx context.Context, askFunc StreamAsk) *HttpSender {
 }
 
 // Send After synchronously enqueuing the segment, asynchronously and concurrently request TTS
-func (h *HttpSender) Send(ctx context.Context, segID int, text string) {
+func (s *Sender) Send(ctx context.Context, segID int, text string) {
 	if text == "" {
-		close(h.sentence.SegChan)
+		close(s.sentence.SegChan)
 		return
 	}
 
@@ -42,17 +44,24 @@ func (h *HttpSender) Send(ctx context.Context, segID int, text string) {
 		ID:        segID,
 		Text:      text,
 	}
-	h.sentence.SegChan <- seg
-	h.sendSeg(ctx, seg)
+	s.sentence.SegChan <- seg
+	s.concurrencyChan <- struct{}{}
+
+	go func() {
+		defer func() {
+			<-s.concurrencyChan
+		}()
+		s.sendSeg(ctx, seg)
+	}()
 	return
 }
 
-func (h *HttpSender) sendSeg(ctx context.Context, seg *Segment) {
+func (s *Sender) sendSeg(ctx context.Context, seg *Segment) {
 	defer close(seg.AudioChan)
 
 	seg.SendTime = time.Now()
 	logger.InfoContext(ctx, "[tts] Send segment to TTS", slog.String("seg", seg.Text), slog.Int("seg_id", seg.ID))
-	rc, err := h.askFunc(ctx, seg.Text)
+	rc, err := s.askFunc(ctx, seg.ID, seg.Text)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			logger.InfoContext(ctx, "[tts] HTTP request was interrupted", slog.String("msg", err.Error()))
@@ -62,7 +71,7 @@ func (h *HttpSender) sendSeg(ctx context.Context, seg *Segment) {
 		return
 	}
 	defer rc.Close()
-	logger.InfoContext(ctx, "[tts]Get HTTP response header and statusCode", slog.String("seg", seg.Text), slog.Int("seg_id", seg.ID))
+	logger.InfoContext(ctx, "[tts] Get HTTP response header and statusCode", slog.String("seg", seg.Text), slog.Int("seg_id", seg.ID))
 
 	var (
 		buf         = make([]byte, 320)
@@ -72,6 +81,7 @@ func (h *HttpSender) sendSeg(ctx context.Context, seg *Segment) {
 	for {
 		n, err := rc.Read(buf[alreadyRead:])
 		if err == io.EOF {
+			logger.DebugContext(ctx, "[tts] Reading audio completed.")
 			return
 		}
 		if err != nil {
@@ -98,6 +108,6 @@ func (h *HttpSender) sendSeg(ctx context.Context, seg *Segment) {
 	}
 }
 
-func (h *HttpSender) Result() <-chan []byte {
-	return h.sentence.AudioChan
+func (s *Sender) GetResult() <-chan []byte {
+	return s.sentence.AudioChan
 }

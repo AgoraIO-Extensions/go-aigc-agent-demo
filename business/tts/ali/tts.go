@@ -7,17 +7,13 @@ import (
 )
 
 type TTS struct {
-	*common.HttpSender
+	*common.Sender
 	ctx context.Context
 }
 
-func NewTTS(ctx context.Context) *TTS {
+func NewTTS(ctx context.Context, con int) *TTS {
 	return &TTS{
-		HttpSender: common.NewHttpSender(ctx, alitts.Inst().StreamAsk),
-		ctx:        ctx,
+		Sender: common.NewHttpSender(ctx, alitts.Inst().StreamAsk, con),
+		ctx:    ctx,
 	}
-}
-
-func (tts *TTS) GetResult() <-chan []byte {
-	return tts.HttpSender.Result()
 }

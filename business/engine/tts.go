@@ -12,13 +12,10 @@ type ttsResult struct {
 }
 
 func (e *Engine) ProcessTTS(input <-chan *llmResult, output chan<- *ttsResult) {
-	concurrencyChan := make(chan struct{}, 2)
-
 	for {
 		r := <-input
 		ctx := r.ctx
 
-		concurrencyChan <- struct{}{}
 		/* create a TTS client connection */
 		ttsClient, err := e.ttsFactory.CreateTTS(ctx)
 		if err != nil {
@@ -28,7 +25,6 @@ func (e *Engine) ProcessTTS(input <-chan *llmResult, output chan<- *ttsResult) {
 
 		/* send the LLM result to TTS */
 		go func() {
-			defer func() { <-concurrencyChan }()
 			for i := 0; ; i++ {
 				select {
 				case seg, ok := <-r.segChan:
