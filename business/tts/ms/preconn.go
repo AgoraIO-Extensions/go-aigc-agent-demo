@@ -3,6 +3,7 @@ package ms
 import (
 	"context"
 	"go-aigc-agent-demo/pkg/logger"
+	"io"
 	"log/slog"
 	"sync"
 )
@@ -19,6 +20,10 @@ func PreConn(con int) {
 			rc, err := tts.streamAsk(ctx, -1, "hello")
 			if err != nil {
 				logger.ErrorContext(ctx, "[tts] establish pre-connection failed", slog.Int("i", i), slog.Any("err", err))
+				return
+			}
+			if _, err = io.ReadAll(rc); err != nil {
+				logger.ErrorContext(ctx, "[tts][io.ReadAll]", slog.Int("i", i), slog.Any("err", err))
 				return
 			}
 			rc.Close()
