@@ -230,6 +230,9 @@ func (e *Engine) groupText(sentenceTextQueue chan *sentenceText, sentenceTextGro
 		case <-sText.sendFailed:
 			logger.ErrorContext(ctx, "[stt] sText.sendFailed")
 			continue
+		case <-sText.ignore:
+			logger.ErrorContext(ctx, "[stt] sText.ignore")
+			continue
 		case <-sText.finishSend:
 			break
 		}
