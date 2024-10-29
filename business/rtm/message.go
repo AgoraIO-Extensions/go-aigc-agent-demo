@@ -7,8 +7,8 @@ import (
 	aigcmsg "go-aigc-agent-demo/business/rtm/proto"
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -87,7 +87,7 @@ func SendSttMsg(ctx *aigcCtx.AIGCContext, flag FlagType, content string) error {
 		return fmt.Errorf("[buildSTTMsg]%v", err)
 	}
 	rtmSend.rtc.SendStreamMessage(msgBytes)
-	logger.InfoContext(ctx, "[rtm] 发送stt消息到rtm成功", zap.Any("flag", flag))
+	logger.InfoContext(ctx, "[rtm] 发送stt消息到rtm成功", slog.Any("flag", flag))
 	return nil
 }
 
@@ -100,7 +100,7 @@ func SendLlmMsg(ctx *aigcCtx.AIGCContext, flag FlagType, content string) error {
 		return fmt.Errorf("[buildLLMMsg]%v", err)
 	}
 	rtmSend.rtc.SendStreamMessage(msgBytes)
-	logger.InfoContext(ctx, "[rtm] 发送llm消息到rtm成功", zap.Any("flag", flag))
+	logger.InfoContext(ctx, "[rtm] 发送llm消息到rtm成功", slog.Any("flag", flag))
 	return nil
 }
 
@@ -113,7 +113,7 @@ func SendTtsMsg(ctx *aigcCtx.AIGCContext, flag FlagType) error {
 		return fmt.Errorf("[buildTTSMsg]%v", err)
 	}
 	rtmSend.rtc.SendStreamMessage(msgBytes)
-	logger.InfoContext(ctx, "[rtm] 发送tts消息到rtm成功", zap.Any("flag", flag))
+	logger.InfoContext(ctx, "[rtm] 发送tts消息到rtm成功", slog.Any("flag", flag))
 	if flag == 1 {
 		if err = SendSentenceMsg(ctx, FlagFin); err != nil {
 			return fmt.Errorf("[e.SendSentenceMsg]%v", err)
@@ -132,6 +132,6 @@ func SendSentenceMsg(ctx *aigcCtx.AIGCContext, flag FlagType) error {
 		return fmt.Errorf("[buildSentenceLifecycleMsg]%v", err)
 	}
 	rtmSend.rtc.SendStreamMessage(msgBytes)
-	logger.InfoContext(ctx, "[rtm] 发送session消息到rtm成功", zap.Int64("sgid", sgid), zap.Any("flag", flag))
+	logger.InfoContext(ctx, "[rtm] 发送session消息到rtm成功", slog.Int64("sgid", sgid), slog.Any("flag", flag))
 	return nil
 }
