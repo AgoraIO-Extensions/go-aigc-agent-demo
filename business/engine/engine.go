@@ -7,10 +7,12 @@ import (
 	"go-aigc-agent-demo/business/filter"
 	"go-aigc-agent-demo/business/llm"
 	"go-aigc-agent-demo/business/rtc"
+	"go-aigc-agent-demo/business/rtm"
 	"go-aigc-agent-demo/business/stt"
 	"go-aigc-agent-demo/business/tts"
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/logger"
+	"strconv"
 )
 
 type Engine struct {
@@ -34,6 +36,13 @@ func InitEngine() (*Engine, error) {
 	// init「rtc」
 	e.rtc = rtc.NewRTC(cfg.RTC.AppID, "", cfg.RTC.ChannelName, cfg.RTC.UserID, cfg.RTC.Region)
 	logger.Info("RTC initialization succeeded")
+
+	userID, err := strconv.Atoi(cfg.RTC.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("[strconv.Atoi]%v", err)
+	}
+
+	rtm.Init(1, int32(userID), sentence.FirstSid, e.rtc)
 
 	// init「stt」
 	if e.sttFactory, err = stt.NewFactory(cfg.STT.Select, cfg.STT); err != nil {

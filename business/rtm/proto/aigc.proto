@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package aigc;
+
+option go_package =".;aigcmsg";
+
+message AigcMessage {
+
+  int32 magicnum = 1; // 注意：proto3 中 [default] 选项是无效的，它仅在 proto2 中有效;需要人工设定
+
+  int32 type = 2; // 100-stt， 120–llm； 130--tts；140-会话状态
+
+  int32 version = 3;  //初始化默认都是1
+
+  int32 userid = 4;
+
+  int32 roundid = 5;
+
+  int32 flag = 6;
+
+  string content = 7;
+
+  int64 timestamp = 8;
+}

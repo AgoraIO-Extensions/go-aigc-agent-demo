@@ -3,7 +3,9 @@ package engine
 import (
 	"go-aigc-agent-demo/business/aigcCtx"
 	"go-aigc-agent-demo/business/aigcCtx/sentence"
+	"go-aigc-agent-demo/business/rtm"
 	"go-aigc-agent-demo/pkg/logger"
+	"go.uber.org/zap"
 	"log/slog"
 	"time"
 )
@@ -25,6 +27,9 @@ func (e *Engine) sendAudioToRTC(ctx *aigcCtx.AIGCContext, audioChan <-chan []byt
 		case chunk, ok = <-audioChan:
 			if !ok {
 				logger.InfoContext(ctx, "[rtc] Completed sending audio to RTC.")
+				if err := rtm.SendTtsMsg(ctx, rtm.FlagFin); err != nil {
+					logger.ErrorContext(ctx, "[rtm.SendTtsMsg]", zap.Error(err))
+				}
 				return
 			}
 			break
@@ -40,6 +45,9 @@ func (e *Engine) sendAudioToRTC(ctx *aigcCtx.AIGCContext, audioChan <-chan []byt
 			ctx.MetaData.Stage = sentence.OnSendToRTC
 			logger.InfoContext(ctx, "[rtc] Started sending audio to RTC.")
 			logger.InfoContext(ctx, "[sentence]<duration> filter output the tail chunk ——> send the head chunk to RTC", slog.Int64("dur", time.Since(ctx.MetaData.FilterAudioTailRcvTime).Milliseconds()))
+			if err := rtm.SendTtsMsg(ctx, rtm.FlagNoFin); err != nil {
+				logger.ErrorContext(ctx, "[rtm.SendTtsMsg]", zap.Error(err))
+			}
 		}
 		if err := e.rtc.SendPcm(chunk); err != nil {
 			logger.ErrorContext(ctx, "[rtc] Failed to send audio to RTC.", slog.Any("err", err))
