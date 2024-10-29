@@ -2,6 +2,7 @@ package engine
 
 import (
 	"go-aigc-agent-demo/business/aigcCtx"
+	"go-aigc-agent-demo/business/aigcCtx/sentence"
 	"go-aigc-agent-demo/pkg/logger"
 	"log/slog"
 	"time"
@@ -36,7 +37,7 @@ func (e *Engine) sendAudioToRTC(ctx *aigcCtx.AIGCContext, audioChan <-chan []byt
 				return
 			}
 			firstSend = false
-			ctx.MetaData.StageSendToRTC = true
+			ctx.MetaData.Stage = sentence.OnSendToRTC
 			logger.InfoContext(ctx, "[rtc] Started sending audio to RTC.")
 			logger.InfoContext(ctx, "[sentence]<duration> filter output the tail chunk ——> send the head chunk to RTC", slog.Int64("dur", time.Since(ctx.MetaData.FilterAudioTailRcvTime).Milliseconds()))
 		}

@@ -21,6 +21,7 @@ type sentenceText struct {
 	ctx        *aigcCtx.AIGCContext
 	finishSend chan struct{}
 	sendFailed chan struct{}
+	ignore     chan struct{}
 	fullText   chan string
 }
 
@@ -41,6 +42,7 @@ func (e *Engine) ProcessSTT(input <-chan *filter.Chunk, output chan *sentenceGro
 				ctx:        sAudio.ctx,
 				finishSend: make(chan struct{}, 1),
 				sendFailed: make(chan struct{}, 1),
+				ignore:     make(chan struct{}, 1),
 				fullText:   make(chan string, 1),
 			}
 			sentenceTextQueue <- sText
@@ -73,7 +75,7 @@ func (e *Engine) groupAudio(streamAudioQueue <-chan *filter.Chunk, sentenceAudio
 		switch chunk.Status {
 		case filter.MuteToSpeak:
 			*prevSMetaData = *sMetaData
-			sMetaData = &sentence.MetaData{Sid: sid}
+			sMetaData = &sentence.MetaData{Sid: sid, Stage: sentence.BeforeSendToRTC}
 
 			ctx := aigcCtx.NewContext(context.WithValue(context.Background(), logger.SentenceMetaData, sMetaData), sMetaData)
 			if cfg.InterruptStage == config.AfterFilter {
@@ -135,28 +137,54 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 	}()
 
 	go func() {
+		const noiseMaxBytes = 11
 		cfg := config.Inst()
 		sttResult := sttClient.GetResult()
 		var firstContent string
+		var interrupted bool
 		for {
 			r := <-sttResult
 			if r.Fail {
-				sText.ctx.ReleaseCtxNode()
+				ctx.ReleaseCtxNode()
 				sText.fullText <- ""
 				logger.ErrorContext(ctx, "[stt] Asynchronous recognition sText failed")
 				return
 			}
 
-			if cfg.InterruptStage == config.AfterSTT && firstContent == "" && r.Text != "" {
-				sText.ctx.Interrupt()
-				logger.InfoContext(ctx, "[stt] do interrupt")
+			if !cfg.STT.Interject && ctx.PrevStage() == sentence.OnSendToRTC {
+				ctx.ReleaseCtxNode()
+				logger.InfoContext(ctx, "[stt] ignore stt result")
+				sText.ignore <- struct{}{}
+				return
 			}
 
-			if firstContent == "" && r.Text != "" {
+			if firstContent == "" {
 				firstContent = r.Text
 			}
 
+			if !interrupted && cfg.InterruptStage == config.AfterSTT {
+				if ctx.PrevStage() == sentence.OnSendToRTC {
+					if len(r.Text) > noiseMaxBytes {
+						ctx.Interrupt()
+						interrupted = true
+					}
+				} else {
+					if r.Text != "" {
+						ctx.Interrupt()
+						interrupted = true
+					}
+				}
+			}
+
 			if r.Complete {
+				if cfg.InterruptStage == config.AfterSTT {
+					if ctx.PrevStage() == sentence.OnSendToRTC && len(r.Text) <= noiseMaxBytes {
+						ctx.ReleaseCtxNode()
+						logger.InfoContext(ctx, "[stt] Filter noise interference", slog.String("noise", r.Text))
+						sText.ignore <- struct{}{}
+						return
+					}
+				}
 				sText.fullText <- r.Text
 				if r.Text == "" {
 					if firstContent != "" {

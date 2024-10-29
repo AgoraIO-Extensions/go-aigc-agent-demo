@@ -12,6 +12,7 @@ time_threshold = 1000 # If the gap between two sentences is less than this value
 
 [stt]
 select = "ali"
+interject = true
 
 [stt.ali]
 url = "wss://nls-gateway.cn-shanghai.aliyuncs.com/ws/v1"

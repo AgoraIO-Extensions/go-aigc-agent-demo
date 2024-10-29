@@ -15,7 +15,7 @@ func Grouping(prevSMetaData *sentence.MetaData, sid int64) int64 {
 	}
 
 	if cfg.Grouping.Strategy == config.DependOnRTCSend {
-		if prevSMetaData.StageSendToRTC {
+		if prevSMetaData.Stage > sentence.BeforeSendToRTC {
 			sgid = sid
 		}
 	}

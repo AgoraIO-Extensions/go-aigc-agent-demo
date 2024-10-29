@@ -46,6 +46,13 @@ func NewContext(pCtx context.Context, metaData *sentence.MetaData) *AIGCContext 
 	return node
 }
 
+func (ctx *AIGCContext) PrevStage() sentence.Stage {
+	if ctx.prev.MetaData == nil {
+		return sentence.BeforeSendToRTC
+	}
+	return ctx.prev.MetaData.Stage
+}
+
 func (ctx *AIGCContext) ReleaseCtxNode() {
 	locker.Lock()
 	defer locker.Unlock()
