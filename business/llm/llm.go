@@ -8,7 +8,6 @@ import (
 	"go-aigc-agent-demo/business/rtm"
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
 	"log/slog"
 	"time"
 )
@@ -60,7 +59,7 @@ func (l *LLM) Ask(ctx *aigcCtx.AIGCContext, question string) (<-chan string, err
 			case seg, ok := <-segChan:
 				if !ok {
 					if errGo := rtm.SendLlmMsg(ctx, rtm.FlagFin, ""); errGo != nil {
-						logger.ErrorContext(ctx, "[rtm.SendLlmMsg]", zap.Error(errGo))
+						logger.ErrorContext(ctx, "[rtm.SendLlmMsg]", slog.Any("errGo", errGo))
 					}
 					close(segChanCopy)
 					return
@@ -70,7 +69,7 @@ func (l *LLM) Ask(ctx *aigcCtx.AIGCContext, question string) (<-chan string, err
 					logger.InfoContext(ctx, "[llm]<duration> request llm ——> rev first segment", slog.Int64("dur", time.Since(startReqTime).Milliseconds()))
 				}
 				if errGo := rtm.SendLlmMsg(ctx, rtm.FlagNoFin, seg); errGo != nil {
-					logger.ErrorContext(ctx, "[rtm.SendLlmMsg]", zap.Error(errGo), zap.String("seg", seg))
+					logger.ErrorContext(ctx, "[rtm.SendLlmMsg]", slog.Any("errGo", errGo), slog.String("seg", seg))
 				}
 				segChanCopy <- seg
 				/*

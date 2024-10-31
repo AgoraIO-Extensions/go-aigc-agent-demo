@@ -9,7 +9,6 @@ import (
 	"go-aigc-agent-demo/business/rtm"
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/logger"
-	"go.uber.org/zap"
 	"log/slog"
 	"time"
 )
@@ -119,7 +118,7 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 			chunk := <-sentenceAudio.audio
 			if chunk.Status == filter.SpeakToMute {
 				if errGo := rtm.SendSentenceMsg(ctx, rtm.FlagNoFin); errGo != nil {
-					logger.ErrorContext(ctx, "[rtm.SendSentenceMsg]", zap.Error(errGo))
+					logger.ErrorContext(ctx, "[rtm.SendSentenceMsg]", slog.Any("errGo", errGo))
 				}
 				if dur := time.Since(chunk.Time).Milliseconds(); dur > 10 {
 					logger.WarnContext(ctx, "[stt]<duration> The audio chunk took more than 10ms from VAD output to STT input.", slog.Int64("dur", dur))
@@ -165,7 +164,7 @@ func (e *Engine) sendToSTT(sentenceAudio sentenceAudio, sText *sentenceText) {
 
 			if r.Text != "" {
 				if errGo := rtm.SendSttMsg(ctx, rtm.FlagNoFin, r.Text); errGo != nil {
-					logger.ErrorContext(ctx, "[rtm.SendSttMsg]", zap.Error(errGo), zap.String("text", r.Text))
+					logger.ErrorContext(ctx, "[rtm.SendSttMsg]", slog.Any("errGo", errGo), slog.String("text", r.Text))
 				}
 			}
 
@@ -252,7 +251,7 @@ func (e *Engine) groupText(sentenceTextQueue chan *sentenceText, sentenceTextGro
 		/* concat stt recognized texts that belongs to a group */
 		concatenatedText = concatenatedText + fullText
 		if err := rtm.SendSttMsg(ctx, rtm.FlagFin, concatenatedText); err != nil {
-			logger.ErrorContext(ctx, "[rtm.SendSttMsg]", zap.Error(err), zap.String("concatenatedText", concatenatedText))
+			logger.ErrorContext(ctx, "[rtm.SendSttMsg]", slog.Any("err", err), slog.String("concatenatedText", concatenatedText))
 		}
 		logger.InfoContext(ctx, "[stt] Text after concatenation", slog.String("text", concatenatedText))
 
