@@ -75,6 +75,7 @@ func (ctx *AIGCContext) WaitNodesCancel() <-chan struct{} {
 		for {
 			if ctx.next == tail || ctx.next.MetaData.Sid > maxSid {
 				done <- struct{}{}
+				return
 			}
 			time.Sleep(time.Millisecond * 10)
 		}
