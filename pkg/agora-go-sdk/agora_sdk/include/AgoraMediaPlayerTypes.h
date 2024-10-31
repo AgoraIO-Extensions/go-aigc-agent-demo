@@ -105,61 +105,61 @@ enum MEDIA_PLAYER_STATE {
  * @brief Player error code
  *
  */
-enum MEDIA_PLAYER_ERROR {
+enum MEDIA_PLAYER_REASON {
   /** No error.
    */
-  PLAYER_ERROR_NONE = 0,
+  PLAYER_REASON_NONE = 0,
   /** The parameter is invalid.
    */
-  PLAYER_ERROR_INVALID_ARGUMENTS = -1,
+  PLAYER_REASON_INVALID_ARGUMENTS = -1,
   /** Internel error.
    */
-  PLAYER_ERROR_INTERNAL = -2,
+  PLAYER_REASON_INTERNAL = -2,
   /** No resource.
    */
-  PLAYER_ERROR_NO_RESOURCE = -3,
+  PLAYER_REASON_NO_RESOURCE = -3,
   /** Invalid media source.
    */
-  PLAYER_ERROR_INVALID_MEDIA_SOURCE = -4,
+  PLAYER_REASON_INVALID_MEDIA_SOURCE = -4,
   /** The type of the media stream is unknown.
    */
-  PLAYER_ERROR_UNKNOWN_STREAM_TYPE = -5,
+  PLAYER_REASON_UNKNOWN_STREAM_TYPE = -5,
   /** The object is not initialized.
    */
-  PLAYER_ERROR_OBJ_NOT_INITIALIZED = -6,
+  PLAYER_REASON_OBJ_NOT_INITIALIZED = -6,
   /** The codec is not supported.
    */
-  PLAYER_ERROR_CODEC_NOT_SUPPORTED = -7,
+  PLAYER_REASON_CODEC_NOT_SUPPORTED = -7,
   /** Invalid renderer.
    */
-  PLAYER_ERROR_VIDEO_RENDER_FAILED = -8,
+  PLAYER_REASON_VIDEO_RENDER_FAILED = -8,
   /** An error occurs in the internal state of the player.
    */
-  PLAYER_ERROR_INVALID_STATE = -9,
+  PLAYER_REASON_INVALID_STATE = -9,
   /** The URL of the media file cannot be found.
    */
-  PLAYER_ERROR_URL_NOT_FOUND = -10,
+  PLAYER_REASON_URL_NOT_FOUND = -10,
   /** Invalid connection between the player and the Agora server.
    */
-  PLAYER_ERROR_INVALID_CONNECTION_STATE = -11,
+  PLAYER_REASON_INVALID_CONNECTION_STATE = -11,
   /** The playback buffer is insufficient.
    */
-  PLAYER_ERROR_SRC_BUFFER_UNDERFLOW = -12,
+  PLAYER_REASON_SRC_BUFFER_UNDERFLOW = -12,
   /** The audio mixing file playback is interrupted.
    */
-  PLAYER_ERROR_INTERRUPTED = -13,
+  PLAYER_REASON_INTERRUPTED = -13,
   /** The SDK does not support this function.
    */
-  PLAYER_ERROR_NOT_SUPPORTED = -14,
+  PLAYER_REASON_NOT_SUPPORTED = -14,
   /** The token has expired.
    */
-  PLAYER_ERROR_TOKEN_EXPIRED = -15,
+  PLAYER_REASON_TOKEN_EXPIRED = -15,
   /** The ip has expired.
    */
-  PLAYER_ERROR_IP_EXPIRED = -16,
+  PLAYER_REASON_IP_EXPIRED = -16,
   /** An unknown error occurs.
    */
-  PLAYER_ERROR_UNKNOWN = -17,
+  PLAYER_REASON_UNKNOWN = -17,
 };
 
 /**
@@ -296,7 +296,7 @@ struct PlayerStreamInfo {
   /** The number of bits per sample if the stream is audio. */
   int audioBitsPerSample;
 
-  /** The total duration (second) of the media stream. */
+  /** The total duration (millisecond) of the media stream. */
   int64_t duration;
 
   PlayerStreamInfo() : streamIndex(0),
@@ -357,18 +357,60 @@ struct CacheStatistics {
   int64_t downloadSize;
 };
 
+/**
+ * @brief The real time statistics of the media stream being played.
+ *
+ */
+struct PlayerPlaybackStats {
+  /**  Video fps.
+   */
+  int videoFps;
+  /**  Video bitrate (Kbps).
+   */
+  int videoBitrateInKbps;
+  /**  Audio bitrate (Kbps).
+   */
+  int audioBitrateInKbps;
+  /**  Total bitrate (Kbps).
+   */
+  int totalBitrateInKbps;
+};
+
+/**
+ * @brief The updated information of media player.
+ *
+ */
 struct PlayerUpdatedInfo {
-  /** playerId has value when user trigger interface of opening
+  /** @technical preview
    */
-  Optional<const char*> playerId;
+  const char* internalPlayerUuid;
+  /** The device ID of the playback device.
+   */
+  const char* deviceId;
+  /**  Video height.
+   */
+  int videoHeight;
+  /**  Video width.
+   */
+  int videoWidth;
+  /**  Audio sample rate.
+   */
+  int audioSampleRate;
+  /**  The audio channel number.
+   */
+  int audioChannels;
+  /**  The bit number of each audio sample.
+   */
+  int audioBitsPerSample;
 
-  /** deviceId has value when user trigger interface of opening
-   */
-  Optional<const char*> deviceId;
-
-  /** cacheStatistics exist if you enable cache, triggered 1s at a time after openning url
-   */
-  Optional<CacheStatistics> cacheStatistics;
+  PlayerUpdatedInfo()
+      : internalPlayerUuid(NULL),
+        deviceId(NULL),
+        videoHeight(0),
+        videoWidth(0),
+        audioSampleRate(0),
+        audioChannels(0),
+        audioBitsPerSample(0) {}
 };
 
 /**
@@ -376,7 +418,7 @@ struct PlayerUpdatedInfo {
  */
 class IMediaPlayerCustomDataProvider {
 public:
-
+    
     /**
      * @brief The player requests to read the data callback, you need to fill the specified length of data into the buffer
      * @param buffer the buffer pointer that you need to fill data.
@@ -384,7 +426,7 @@ public:
      * @return you need return offset value if succeed. return 0 if failed.
      */
     virtual int onReadData(unsigned char *buffer, int bufferSize) = 0;
-
+    
     /**
      * @brief The Player seek event callback, you need to operate the corresponding stream seek operation, You can refer to the definition of lseek() at https://man7.org/linux/man-pages/man2/lseek.2.html
      * @param offset the value of seek offset.
@@ -398,7 +440,7 @@ public:
      * whence >= 0 && whence < 3 , return offset value if succeed. return -1 if failed.
      */
     virtual int64_t onSeek(int64_t offset, int whence) = 0;
-
+    
     virtual ~IMediaPlayerCustomDataProvider() {}
 };
 
@@ -427,10 +469,26 @@ struct MediaSource {
   /**
    * Determines whether to enable cache streaming to local files. If enable cached, the media player will
    * use the url or uri as the cache index.
+   *
+   * @note
+   * The local cache function only supports on-demand video/audio streams and does not support live streams.
+   * Caching video and audio files based on the HLS protocol (m3u8) to your local device is not supported.
+   *
    * - true: Enable cache.
    * - false: (Default) Disable cache.
    */
   bool enableCache;
+  /**
+   * Determines whether to enable multi-track audio stream decoding.
+   * Then you can select multi audio track of the media file for playback or publish to channel
+   *
+   * @note
+   * If you use the selectMultiAudioTrack API, you must set enableMultiAudioTrack to true.
+   *
+   * - true: Enable MultiAudioTrack;.
+   * - false: (Default) Disable MultiAudioTrack;.
+   */
+  bool enableMultiAudioTrack;
   /**
    * Determines whether the opened media resource is a stream through the Agora Broadcast Streaming Network(CDN).
    * - true: It is a stream through the Agora Broadcast Streaming Network.
@@ -449,7 +507,7 @@ struct MediaSource {
   IMediaPlayerCustomDataProvider* provider;
 
   MediaSource() : url(NULL), uri(NULL), startPos(0), autoPlay(true), enableCache(false),
-                  provider(NULL){
+                  enableMultiAudioTrack(false), provider(NULL){
   }
 };
 

@@ -16,14 +16,14 @@ func (r *RTC) SendPcm(chunk []byte) error {
 		return fmt.Errorf("[sendLimiter.Wait]%w", err)
 	}
 
-	frame := &agoraservice.PcmAudioFrame{
-		Data:              chunk,
+	frame := &agoraservice.AudioFrame{
+		Buffer:            chunk,
 		SamplesPerChannel: 160,
 		BytesPerSample:    2,
-		NumberOfChannels:  1,
-		SampleRate:        16000,
+		Channels:          1,
+		SamplesPerSec:     16000,
 	}
-	if code := r.pcmSender.SendPcmData(frame); code != 0 {
+	if code := r.pcmSender.SendAudioPcmData(frame); code != 0 {
 		return fmt.Errorf("err code=%d", code)
 	}
 	return nil

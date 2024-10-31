@@ -1,33 +1,38 @@
 #include "rtc_callbacks_cgo.h"
 
-extern void goOnConnected(void* agora_rtc_conn, const struct _rtc_conn_info* conn_info, int reason);
+extern void goOnConnected(void* agora_rtc_conn, struct _rtc_conn_info* conn_info, int reason);
 void cgo_on_connected(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason) {
-  goOnConnected(agora_rtc_conn, conn_info, reason);
+  goOnConnected(agora_rtc_conn, (struct _rtc_conn_info*)conn_info, reason);
 }
 
-extern void goOnDisconnected(void* agora_rtc_conn, const struct _rtc_conn_info* conn_info, int reason);
+extern void goOnDisconnected(void* agora_rtc_conn, struct _rtc_conn_info* conn_info, int reason);
 void cgo_on_disconnected(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason) {
-  goOnDisconnected(agora_rtc_conn, conn_info, reason);
+  goOnDisconnected(agora_rtc_conn, (struct _rtc_conn_info*)conn_info, reason);
 }
 
-extern void goOnReconnecting(void* agora_rtc_conn, const struct _rtc_conn_info* conn_info, int reason);
+extern void goOnConnecting(void* agora_rtc_conn, struct _rtc_conn_info* conn_info, int reason);
+void cgo_on_connecting(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason) {
+  goOnConnecting(agora_rtc_conn, (struct _rtc_conn_info*)conn_info, reason);
+}
+
+extern void goOnReconnecting(void* agora_rtc_conn, struct _rtc_conn_info* conn_info, int reason);
 void cgo_on_reconnecting(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason) {
-  goOnReconnecting(agora_rtc_conn, conn_info, reason);
+  goOnReconnecting(agora_rtc_conn, (struct _rtc_conn_info*)conn_info, reason);
 }
 
-extern void goOnReconnected(void* agora_rtc_conn, const struct _rtc_conn_info* conn_info, int reason);
+extern void goOnReconnected(void* agora_rtc_conn, struct _rtc_conn_info* conn_info, int reason);
 void cgo_on_reconnected(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason)  {
-  goOnReconnected(agora_rtc_conn, conn_info, reason);
+  goOnReconnected(agora_rtc_conn, (struct _rtc_conn_info*)conn_info, reason);
 }
 
-extern void goOnConnectionLost(void* agora_rtc_conn, const struct _rtc_conn_info* conn_info);
+extern void goOnConnectionLost(void* agora_rtc_conn, struct _rtc_conn_info* conn_info);
 void cgo_on_connection_lost(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info) {
-  goOnConnectionLost(agora_rtc_conn, conn_info);
+  goOnConnectionLost(agora_rtc_conn, (struct _rtc_conn_info*)conn_info);
 }
 
-extern void goOnConnectionFailure(AGORA_HANDLE agora_rtc_conn, const struct _rtc_conn_info* conn_info, int reason);
+extern void goOnConnectionFailure(AGORA_HANDLE agora_rtc_conn, struct _rtc_conn_info* conn_info, int reason);
 void cgo_on_connection_failure(AGORA_HANDLE agora_rtc_conn, const rtc_conn_info* conn_info, int reason) {
-  goOnConnectionFailure(agora_rtc_conn, conn_info, reason);
+  goOnConnectionFailure(agora_rtc_conn, (struct _rtc_conn_info*)conn_info, reason);
 }
 
 //token
@@ -52,6 +57,11 @@ void cgo_on_user_left(AGORA_HANDLE agora_rtc_conn, user_id_t user_id, int reason
   goOnUserOffline(agora_rtc_conn, user_id, reason);
 }
 
+extern void goOnError(void* agora_rtc_conn, int error, const char* msg);
+void cgo_on_error(AGORA_HANDLE agora_rtc_conn, int error, const char* msg) {
+  goOnError(agora_rtc_conn, error, msg);
+}
+
 //steam message 
 extern void goOnStreamMessageError(void* agora_rtc_conn, user_id_t user_id, int stream_id, int code, int missed, int cached);
 void cgo_on_stream_message_error(AGORA_HANDLE agora_rtc_conn, user_id_t user_id, int stream_id, int code, int missed, int cached) {
@@ -66,4 +76,24 @@ void cgo_on_stream_message(AGORA_HANDLE agora_local_user, user_id_t user_id, int
 extern void goOnUserInfoUpdated(void* agora_local_user, user_id_t user_id, int msg, int val);
 void cgo_on_user_info_updated(AGORA_HANDLE agora_local_user, user_id_t user_id, int msg, int val) {
   goOnUserInfoUpdated(agora_local_user, user_id, msg, val);
+}
+
+extern void goOnUserAudioTrackSubscribed(void* agora_local_user, user_id_t user_id, void* agora_remote_audio_track);
+void cgo_on_user_audio_track_subscribed(AGORA_HANDLE agora_local_user, user_id_t user_id, AGORA_HANDLE agora_remote_audio_track) {
+  goOnUserAudioTrackSubscribed(agora_local_user, user_id, agora_remote_audio_track);
+}
+
+extern void goOnUserVideoTrackSubscribed(void* agora_local_user, user_id_t user_id, struct _video_track_info* info, void* agora_remote_video_track);
+void cgo_on_user_video_track_subscribed(AGORA_HANDLE agora_local_user, user_id_t user_id, const video_track_info* info, AGORA_HANDLE agora_remote_video_track) {
+  goOnUserVideoTrackSubscribed(agora_local_user, user_id, (struct _video_track_info*)info, agora_remote_video_track);
+}
+
+extern void goOnUserAudioTrackStateChanged(void* agora_local_user, user_id_t user_id, void* agora_remote_audio_track, int state, int reason, int elapsed);
+void cgo_on_user_audio_track_state_changed(AGORA_HANDLE agora_local_user, user_id_t user_id, AGORA_HANDLE agora_remote_audio_track, int state, int reason, int elapsed) {
+  goOnUserAudioTrackStateChanged(agora_local_user, user_id, agora_remote_audio_track, state, reason, elapsed);
+}
+
+extern void goOnUserVideoTrackStateChanged(void* agora_local_user, user_id_t user_id, void* agora_remote_video_track, int state, int reason, int elapsed);
+void cgo_on_user_video_track_state_changed(AGORA_HANDLE agora_local_user, user_id_t user_id, AGORA_HANDLE agora_remote_video_track, int state, int reason, int elapsed) {
+  goOnUserVideoTrackStateChanged(agora_local_user, user_id, agora_remote_video_track, state, reason, elapsed);
 }

@@ -68,10 +68,11 @@ const (
 )
 
 type STT struct {
-	Select SttSelect `toml:"select"`
-	Mode   STTMode   `toml:"mode"`
-	MS     msSTT     `toml:"ms"`
-	Ali    aliSTT    `toml:"ali"`
+	Select    SttSelect `toml:"select"`
+	Mode      STTMode   `toml:"mode"`
+	Interject bool      `toml:"interject"`
+	MS        msSTT     `toml:"ms"`
+	Ali       aliSTT    `toml:"ali"`
 }
 
 type msTTS struct {

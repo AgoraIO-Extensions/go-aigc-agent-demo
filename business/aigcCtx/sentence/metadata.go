@@ -9,10 +9,18 @@ import (
 
 var FirstSid = time.Now().Unix() * 10
 
+type Stage int
+
+const (
+	BeforeSendToRTC Stage = 0
+	OnSendToRTC     Stage = 1
+	//AfterSendToRTC  Stage = 2
+)
+
 type MetaData struct {
 	Sid                    int64
 	Sgid                   int64
-	StageSendToRTC         bool
+	Stage                  Stage
 	FilterAudioTailRcvTime time.Time // the time of the filter outputting the tail chunk
 }
 

@@ -27,12 +27,14 @@ type InitParams struct {
 }
 
 type RTC struct {
-	initParams  *InitParams
-	connConfig  *agoraservice.RtcConnectionConfig
-	conn        *agoraservice.RtcConnection
-	pcmSender   *agoraservice.PcmSender
-	sendLimiter *rate.Limiter
-	streamID    int
+	initParams       *InitParams
+	connConfig       *agoraservice.RtcConnectionConfig
+	track            *agoraservice.LocalAudioTrack
+	conn             *agoraservice.RtcConnection
+	mediaNodeFactory *agoraservice.MediaNodeFactory
+	pcmSender        *agoraservice.AudioPcmDataSender
+	sendLimiter      *rate.Limiter
+	streamID         int
 }
 
 func NewRTC(appid, token, channelName, userId, region string) *RTC {
@@ -42,28 +44,15 @@ func NewRTC(appid, token, channelName, userId, region string) *RTC {
 		areaCode = code
 	}
 
-	svcCfg := agoraservice.AgoraServiceConfig{
-		AppId:         appid,
-		AudioScenario: agoraservice.AUDIO_SCENARIO_CHORUS,
-		LogPath:       "./agora_rtc_log/agorasdk.log",
-		LogSize:       512 * 1024,
-		AreaCode:      areaCode,
-	}
-	agoraservice.Init(&svcCfg)
+	svcCfg := agoraservice.NewAgoraServiceConfig()
+	svcCfg.AppId = appid
+	agoraservice.Initialize(svcCfg)
 
 	connCfg := &agoraservice.RtcConnectionConfig{
-		SubAudio:       true,
-		SubVideo:       false,
-		ClientRole:     1,
-		ChannelProfile: 1,
-
-		SubAudioConfig: &agoraservice.SubscribeAudioConfig{
-			SampleRate: 16000,
-			Channels:   1,
-		},
-		ConnectionHandler:  &agoraservice.RtcConnectionEventHandler{},
-		AudioFrameObserver: nil,
-		VideoFrameObserver: nil,
+		AutoSubscribeAudio: true,
+		AutoSubscribeVideo: false,
+		ClientRole:         agoraservice.ClientRoleBroadcaster,
+		ChannelProfile:     agoraservice.ChannelProfileLiveBroadcasting,
 	}
 
 	params := &InitParams{
@@ -82,14 +71,26 @@ func NewRTC(appid, token, channelName, userId, region string) *RTC {
 }
 
 func (r *RTC) Connect() error {
-	r.conn = agoraservice.NewConnection(r.connConfig)
-	r.pcmSender = r.conn.NewPcmSender()
+	r.conn = agoraservice.NewRtcConnection(r.connConfig)
+	localUser := r.conn.GetLocalUser()
+	localUser.SetPlaybackAudioFrameBeforeMixingParameters(1, 16000)
+	localUser.RegisterAudioFrameObserver(audioObserver)
+
+	r.conn.RegisterObserver(conHandler)
+
+	r.mediaNodeFactory = agoraservice.NewMediaNodeFactory()
+	r.pcmSender = r.mediaNodeFactory.NewAudioPcmDataSender()
+	agoraservice.EnableExtension("agora.builtin", "agora_audio_label_generator", "", true)
+	agoraservice.GetAgoraParameter().SetParameters("{\"che.audio.label.enable\": true}")
+	r.track = agoraservice.NewCustomAudioTrackPcm(r.pcmSender)
+	localUser.SetAudioScenario(agoraservice.AudioScenarioChorus)
 	code := r.conn.Connect(r.initParams.token, r.initParams.channelName, r.initParams.userID)
 	if code != 0 {
 		return fmt.Errorf("err code:%d", code)
 	}
-	r.pcmSender.Start()
-	r.pcmSender.AdjustVolume(100)
+	r.track.SetEnabled(true)
+	localUser.PublishAudio(r.track)
+	r.track.AdjustPublishVolume(100)
 	r.streamID, code = r.conn.CreateDataStream(true, true)
 	if code != 0 {
 		return fmt.Errorf("[CreateDataStream] err code:%d", code)
@@ -97,10 +98,10 @@ func (r *RTC) Connect() error {
 	return nil
 }
 
-func (r *RTC) Close() {
-	r.pcmSender.Stop()
-	r.conn.Disconnect()
-	agoraservice.Destroy()
-	r.pcmSender.Release()
-	r.conn.Release()
-}
+//func (r *RTC) Release() {
+//	r.track.Release()
+//	r.pcmSender.Release()
+//	r.conn.Release()
+//	r.mediaNodeFactory.Release()
+//	agoraservice.Release()
+//}

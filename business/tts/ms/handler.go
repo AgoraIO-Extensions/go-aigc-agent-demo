@@ -6,19 +6,22 @@ import (
 	"go-aigc-agent-demo/pkg/logger"
 )
 
-func (tts *TTS) synthesizeStartedHandler(event speech.SpeechSynthesisEventArgs) {
+func (s *speechSynthesizer) synthesizeStartedHandler(event speech.SpeechSynthesisEventArgs) {
 	defer event.Close()
 }
 
-func (tts *TTS) synthesizingHandler(event speech.SpeechSynthesisEventArgs) {
+func (s *speechSynthesizer) synthesizingHandler(event speech.SpeechSynthesisEventArgs) {
 	defer event.Close()
 }
 
-func (tts *TTS) synthesizedHandler(event speech.SpeechSynthesisEventArgs) {
+func (s *speechSynthesizer) synthesizedHandler(event speech.SpeechSynthesisEventArgs) {
 	defer event.Close()
+	logger.DebugContext(s.ctx, "[tts][synthesizedHandler]")
+	s.ctx = nil
+	pool.put(s)
 }
 
-func (tts *TTS) cancelledHandler(event speech.SpeechSynthesisEventArgs) {
+func (s *speechSynthesizer) cancelledHandler(event speech.SpeechSynthesisEventArgs) {
 	defer event.Close()
-	logger.ErrorContext(tts.ctx, fmt.Sprintf("[tts cancelledHandler] Reason:%v", event.Result.Reason))
+	logger.ErrorContext(s.ctx, fmt.Sprintf("[tts][cancelledHandler] Reason:%v", event.Result.Reason))
 }

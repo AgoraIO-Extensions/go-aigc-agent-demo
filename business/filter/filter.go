@@ -28,17 +28,16 @@ func NewFilter(FirstSid int64, startWin, StopWin int) *Filter {
 	}
 }
 
-func (f *Filter) OnRcvRTCAudio(con *agoraservice.RtcConnection, channelId string, uid string, inFrame *agoraservice.PcmAudioFrame) {
-	cks, status, err := f.vad.ProcessPcmFrame(inFrame)
+func (f *Filter) OnRcvRTCAudio(localUser *agoraservice.LocalUser, channelId string, userId string, frame *agoraservice.AudioFrame) bool {
+	cks, status, err := f.vad.ProcessPcmFrame(frame)
 	if err != nil {
 		logger.Info("[vad] Failed to process audio.", slog.Any("err", err))
-		return
+		return true
 	}
-
 	now := time.Now()
 	switch status {
 	case Mute:
-		return
+		return true
 	case MuteToSpeak:
 		f.sid++
 		logger.Info("[filter] Received sentence audio header.", slog.Int64("sid", f.sid))
@@ -73,7 +72,7 @@ func (f *Filter) OnRcvRTCAudio(con *agoraservice.RtcConnection, channelId string
 	default:
 		logger.Error("[filter] Unreachable code", slog.Any("status", status))
 	}
-	return
+	return true
 }
 
 func (f *Filter) OutputAudio() <-chan *Chunk {

@@ -14,35 +14,21 @@ namespace rtc {
 class IMediaRelayObserver;
 class IMediaRelayService : public RefCountInterface {
  public:
-  /** Starts to relay media streams across channels.
+  /** Starts or update to relay media streams across channels.
    *
+   * @since v4.2.0
    * @param configuration The configuration of the media stream relay:
    * ChannelMediaRelayConfiguration.
    *
    * @return
    * - 0: Success.
    * - < 0: Failure.
+   *   - -1(ERR_FAILED): A general error occurs (no specified reason).
+   *   - -2(ERR_INVALID_ARGUMENT): The argument is invalid.
+   *   - -5(ERR_REFUSED): The request is rejected.
    */
-  virtual int startChannelMediaRelay(const ChannelMediaRelayConfiguration& configuration) = 0;
-  /** Updates the channels for media stream relay. After a successful
-   * \ref startChannelMediaRelay() "startChannelMediaRelay" method call, if
-   * you want to relay the media stream to more channels, or leave the
-   * current relay channel, you can call the
-   * \ref updateChannelMediaRelay() "updateChannelMediaRelay" method.
-   *
-   * @note
-   * Call this method after the
-   * \ref startChannelMediaRelay() "startChannelMediaRelay" method to update
-   * the destination channel.
-   *
-   * @param configuration The media stream relay configuration:
-   * ChannelMediaRelayConfiguration.
-   *
-   * @return
-   * - 0: Success.
-   * - < 0: Failure.
-   */
-  virtual int updateChannelMediaRelay(const ChannelMediaRelayConfiguration& configuration) = 0;
+  virtual int startOrUpdateChannelMediaRelay(const ChannelMediaRelayConfiguration& configuration) = 0;
+
   /** Stops the media stream relay.
    *
    * Once the relay stops, the host quits all the destination
@@ -51,22 +37,31 @@ class IMediaRelayService : public RefCountInterface {
    * @return
    * - 0: Success.
    * - < 0: Failure.
+   *   - -1(ERR_FAILED): A general error occurs (no specified reason).
+   *   - -2(ERR_INVALID_ARGUMENT): The argument is invalid.
+   *   - -5(ERR_REFUSED): The request is rejected.
    */
-  virtual int stopChannelMediaRelay() = 0;
+  virtual int stopChannelMediaRelay(aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /** pause the channels for media stream relay.
    * @return
    * - 0: Success.
    * - < 0: Failure.
+   *   - -1(ERR_FAILED): A general error occurs (no specified reason).
+   *   - -2(ERR_INVALID_ARGUMENT): The argument is invalid.
+   *   - -5(ERR_REFUSED): The request is rejected.
    */
-  virtual int pauseAllChannelMediaRelay() = 0;
+  virtual int pauseAllChannelMediaRelay(aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /** resume the channels for media stream relay.
    * @return
    * - 0: Success.
    * - < 0: Failure.
+   *   - -1(ERR_FAILED): A general error occurs (no specified reason).
+   *   - -2(ERR_INVALID_ARGUMENT): The argument is invalid.
+   *   - -5(ERR_REFUSED): The request is rejected.
    */
-  virtual int resumeAllChannelMediaRelay() = 0;
+  virtual int resumeAllChannelMediaRelay(aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   
   virtual void registerEventHandler(IMediaRelayObserver* eventObserver, void(*safeDeleter)(IMediaRelayObserver*) = NULL) = 0;
   virtual void unregisterEventHandler(IMediaRelayObserver* eventObserver) = 0;
@@ -86,11 +81,6 @@ class IMediaRelayObserver {
    */
   virtual void onChannelMediaRelayStateChanged(CHANNEL_MEDIA_RELAY_STATE state,
                                                CHANNEL_MEDIA_RELAY_ERROR code) {}
-  /** Reports events during the media stream relay.
-   *
-   * @param code The event code in #CHANNEL_MEDIA_RELAY_EVENT.
-   */
-  virtual void onChannelMediaRelayEvent(CHANNEL_MEDIA_RELAY_EVENT code) {}
 };
 
 }  // namespace rtc

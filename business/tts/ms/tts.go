@@ -9,40 +9,6 @@ import (
 	"io"
 )
 
-func newSpeechSynthesizer(cfg *Config, speechConfig *speech.SpeechConfig) (*speech.SpeechSynthesizer, error) {
-	if cfg.languageCheckMode == AutoCheck {
-		langConfig, err := speech.NewAutoDetectSourceLanguageConfigFromOpenRange()
-		if err != nil {
-			return nil, fmt.Errorf("[NewAutoDetectSourceLanguageConfigFromLanguages]%v", err)
-		}
-		syn, err := speech.NewSpeechSynthesizerFomAutoDetectSourceLangConfig(speechConfig, langConfig, nil)
-		if err != nil {
-			return nil, fmt.Errorf("[NewSpeechSynthesizerFomAutoDetectSourceLangConfig]%v", err)
-		}
-		return syn, nil
-	}
-
-	// If both SpeechSynthesisVoiceName and SpeechSynthesisLanguage are not set, the default voice for en-US will be used.
-	// If only SpeechSynthesisLanguage is set, the default voice for the specified locale will be used.
-	// If both SpeechSynthesisVoiceName and SpeechSynthesisLanguage are set, the SpeechSynthesisLanguage setting will be ignored. The system will use the voice specified by SpeechSynthesisVoiceName.
-	if cfg.specifyLanguage != "" {
-		if err := speechConfig.SetSpeechSynthesisLanguage(cfg.specifyLanguage); err != nil {
-			return nil, fmt.Errorf("[SetSpeechSynthesisLanguage]%v", err)
-		}
-	}
-	if cfg.outputVoice != "" {
-		if err := speechConfig.SetSpeechSynthesisVoiceName(cfg.outputVoice); err != nil {
-			return nil, fmt.Errorf("[SetSpeechSynthesisVoiceName]%v", err)
-		}
-	}
-
-	syn, err := speech.NewSpeechSynthesizerFromConfig(speechConfig, nil)
-	if err != nil {
-		return nil, fmt.Errorf("[NewSpeechSynthesizerFromConfig]%v", err)
-	}
-	return syn, nil
-}
-
 /* -------------------------------------------------- config ---------------------------------------------------------- */
 
 type Config struct {
@@ -62,8 +28,8 @@ const (
 	Specify   LanguageCheckMode = 1 // Specify language mode
 )
 
-func NewTTSConfig(setLog bool, speechKey, speechRegion string, languageCheckMode int, specifyLanguage, outputVoice string, outputFormat common.SpeechSynthesisOutputFormat) *Config {
-	return &Config{
+func Init(setLog bool, speechKey, speechRegion string, languageCheckMode int, specifyLanguage, outputVoice string, outputFormat common.SpeechSynthesisOutputFormat) error {
+	cfg := &Config{
 		setLog:                      setLog,
 		languageCheckMode:           LanguageCheckMode(languageCheckMode),
 		specifyLanguage:             specifyLanguage,
@@ -72,69 +38,46 @@ func NewTTSConfig(setLog bool, speechKey, speechRegion string, languageCheckMode
 		speechRegion:                speechRegion,
 		SpeechSynthesisOutputFormat: outputFormat,
 	}
+
+	speechConfig, err := speech.NewSpeechConfigFromSubscription(cfg.speechKey, cfg.speechRegion)
+	if err != nil {
+		return fmt.Errorf("[NewSpeechConfigFromSubscription]%w", err)
+	}
+	if err = speechConfig.SetSpeechSynthesisOutputFormat(cfg.SpeechSynthesisOutputFormat); err != nil {
+		return fmt.Errorf("[SetSpeechSynthesisOutputFormat]%w", err)
+	}
+	if cfg.setLog {
+		if err = speechConfig.SetProperty(common.SpeechLogFilename, "tts.log"); err != nil {
+			return fmt.Errorf("[setLog]%v", err)
+		}
+	}
+
+	initSynthesizerPool(cfg, speechConfig, 5)
+	return nil
 }
 
 /* --------------------------------------------------- TTS --------------------------------------------------------- */
 
 type TTS struct {
-	*ttscommon.HttpSender
-	ctx               context.Context
-	speechConfig      *speech.SpeechConfig
-	speechSynthesizer *speech.SpeechSynthesizer
+	*ttscommon.Sender
+	ctx context.Context
 }
 
-func NewTTS(ctx context.Context, con int, cfg *Config) (*TTS, error) {
+func NewTTS(ctx context.Context, con int) *TTS {
 	tts := &TTS{
 		ctx: ctx,
 	}
-	tts.HttpSender = ttscommon.NewHttpSender(ctx, con, tts.streamAsk)
-	var err error
-	defer func() {
-		if err != nil {
-			tts.close()
-		}
-	}()
-
-	tts.speechConfig, err = speech.NewSpeechConfigFromSubscription(cfg.speechKey, cfg.speechRegion)
-	if err != nil {
-		return nil, fmt.Errorf("[speech.NewSpeechConfigFromSubscription]%v", err)
-	}
-
-	if err = tts.speechConfig.SetSpeechSynthesisOutputFormat(cfg.SpeechSynthesisOutputFormat); err != nil {
-		panic(err)
-	}
-
-	if cfg.setLog {
-		if err = tts.speechConfig.SetProperty(common.SpeechLogFilename, "tts.log"); err != nil {
-			return nil, fmt.Errorf("[setLog]%v", err)
-		}
-	}
-
-	tts.speechSynthesizer, err = newSpeechSynthesizer(cfg, tts.speechConfig)
-	if err != nil {
-		return nil, fmt.Errorf("[newSpeechSynthesizer]%v", err)
-	}
-
-	tts.speechSynthesizer.SynthesisStarted(tts.synthesizeStartedHandler)
-	tts.speechSynthesizer.Synthesizing(tts.synthesizingHandler)
-	tts.speechSynthesizer.SynthesisCompleted(tts.synthesizedHandler)
-	tts.speechSynthesizer.SynthesisCanceled(tts.cancelledHandler)
-
-	return tts, nil
-}
-
-func (tts *TTS) close() {
-	if tts.speechSynthesizer != nil {
-		tts.speechSynthesizer.Close()
-	}
-	if tts.speechConfig != nil {
-		tts.speechConfig.Close()
-	}
+	tts.Sender = ttscommon.NewHttpSender(ctx, tts.streamAsk, con)
+	return tts
 }
 
 // streamAsk send text to tts
-func (tts *TTS) streamAsk(ctx context.Context, text string) (io.ReadCloser, error) {
-	task := tts.speechSynthesizer.StartSpeakingTextAsync(text)
+func (tts *TTS) streamAsk(ctx context.Context, segID int, seg string) (io.ReadCloser, error) {
+	syn, err := pool.get(ctx, segID)
+	if err != nil {
+		return nil, fmt.Errorf("[pool.get]%v", err)
+	}
+	task := syn.msSpeechSynthesizer.StartSpeakingTextAsync(seg)
 
 	var outcome speech.SpeechSynthesisOutcome
 
@@ -154,14 +97,6 @@ func (tts *TTS) streamAsk(ctx context.Context, text string) (io.ReadCloser, erro
 	}
 
 	return &streamReaderCloser{stream: stream}, nil
-}
-
-func (tts *TTS) Send(ctx context.Context, segmentID int, segmentContent string) {
-	tts.HttpSender.Send(ctx, segmentID, segmentContent)
-}
-
-func (tts *TTS) GetResult() <-chan []byte {
-	return tts.HttpSender.Result()
 }
 
 /* ---------------------------------------------------- streamReaderCloser -------------------------------------------------------- */

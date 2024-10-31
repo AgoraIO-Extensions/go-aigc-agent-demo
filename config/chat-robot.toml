@@ -12,6 +12,7 @@ time_threshold = 1000 # If the gap between two sentences is less than this value
 
 [stt]
 select = "ali"
+interject = true
 
 [stt.ali]
 url = "wss://nls-gateway.cn-shanghai.aliyuncs.com/ws/v1"
@@ -48,6 +49,7 @@ app_id = ""
 channel_name = "local-1"
 user_id = "0"
 region = "glob"
+open_msg_return = false
 
 [log]
 file = "./demo.log"
