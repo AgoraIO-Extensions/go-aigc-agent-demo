@@ -60,7 +60,15 @@ class IRtmpLocalUserObserver {
    * @param audioTrack The pointer to ILocalAudioTrack.
    */
   virtual void onAudioTrackPublishSuccess(agora_refptr<rtc::ILocalAudioTrack> audioTrack) = 0;
+
+  /**
+   * @deprecated This method will not be called back
+   */
   virtual void onAudioTrackPublishStart(agora_refptr<rtc::ILocalAudioTrack> audioTrack) = 0;
+
+  /**
+   * @deprecated This method will not be called back
+   */
   virtual void onAudioTrackUnpublished(agora_refptr<rtc::ILocalAudioTrack> audioTrack) = 0;
 
   /**
@@ -78,7 +86,15 @@ class IRtmpLocalUserObserver {
    * @param videoTrack The pointer to ILocalVideoTrack.
    */
   virtual void onVideoTrackPublishSuccess(agora_refptr<rtc::ILocalVideoTrack> videoTrack) = 0;
+
+  /**
+   * @deprecated This method will not be called back
+   */
   virtual void onVideoTrackPublishStart(agora_refptr<rtc::ILocalVideoTrack> videoTrack) = 0;
+
+  /**
+   * @deprecated This method will not be called back
+   */
   virtual void onVideoTrackUnpublished(agora_refptr<rtc::ILocalVideoTrack> videoTrack) = 0;
 
   /**
@@ -109,19 +125,77 @@ class IRtmpLocalUser {
 
   virtual ~IRtmpLocalUser() {}
 
-  virtual int setAudioStreamConfiguration(const RtmpStreamingAudioConfiguration& config) = 0;
+  /**
+   * Set the parameters of the audio encoder when pushing the stream
+   * 
+   * @param config Audio encoder parameters
+   *
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual int setAudioStreamConfiguration(const RtmpStreamingAudioConfiguration& config, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
-  virtual int setVideoStreamConfiguration(const RtmpStreamingVideoConfiguration& config) = 0;
+  /**
+   * Set the parameters of the video encoder when pushing the stream
+   * 
+   * @param config Video encoder parameters
+   *
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual int setVideoStreamConfiguration(const RtmpStreamingVideoConfiguration& config, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
-  virtual int adjustRecordingSignalVolume(int volume) = 0;
+  /**
+   * Adjusts the audio volume for publishing.
+   *
+   * @param volume The volume for publishing. The value ranges between 0 and 100 (default).
+   * 
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual int adjustRecordingSignalVolume(int volume, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
+  /**
+   * Gets the current volume for publishing.
+   * @param volume A pointer to the publishing volume.
+   * 
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
   virtual int getRecordingSignalVolume(int32_t* volume) = 0;
 
-  virtual int setAudioEnabled(bool enabled) = 0;
+  /**
+   * Dynamically adjust the bit rate parameters of the video encoder in the push stream
+   * 
+   * @note: When increasing the bit rate, each call increases by 50kbps; 
+   *        When you lower the bit rate, you reduce it by 100kbps per call
+   * 
+   * @param type The type of adjustment mode for the bit-rate parameter of the video encoder in the push stream:
+   * - `Increasing`: Increase the video encoding bitrate.
+   * - `Decreasing`: Reduce video encoding bitrate
+   * 
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual int adjustVideoBitrate(VideoBitrateAdjustType type, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
-  virtual void adjustVideoBitrate(VideoBitrateAdjustType type) = 0;
-
-  virtual int setVideoEnabled(bool enabled) = 0;
+  /**
+   * Set whether to enable local video
+   * 
+   * @param enabled Whether to enable local video:
+   * - `true`: Enable local video.
+   * - `false`: Disable local video.
+   * 
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual int setVideoEnabled(bool enabled, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Publishes a local audio track to the RTMP connection.
@@ -131,7 +205,7 @@ class IRtmpLocalUser {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int publishAudio(agora_refptr<rtc::ILocalAudioTrack> audioTrack) = 0;
+  virtual int publishAudio(agora_refptr<rtc::ILocalAudioTrack> audioTrack, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Stops publishing the local audio track to the RTMP connection.
@@ -141,29 +215,7 @@ class IRtmpLocalUser {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int unpublishAudio(agora_refptr<rtc::ILocalAudioTrack> audioTrack) = 0;
-
-  /**
-   * Publishes a media player local audio track to the RTMP connection.
-   *
-   * @param audioTrack The local audio track to be published: ILocalAudioTrack.
-   * @param playerId  The player source ID.
-   * @return
-   * - 0: Success.
-   * - < 0: Failure.
-   */
-  virtual int publishMediaPlayerAudio(agora_refptr<rtc::ILocalAudioTrack> audioTrack, int32_t playerId=0) = 0;
-
-  /**
-   * Stops publishing the media player local audio track to the RTMP connection.
-   *
-   * @param audioTrack The local audio track that you want to stop publishing: ILocalAudioTrack.
-   * @param playerId  The player source ID.
-   * @return
-   * - 0: Success.
-   * - < 0: Failure.
-   */
-  virtual int unpublishMediaPlayerAudio(agora_refptr<rtc::ILocalAudioTrack> audioTrack, int32_t playerId=0) = 0;
+  virtual int unpublishAudio(agora_refptr<rtc::ILocalAudioTrack> audioTrack, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Publishes a local video track to the RTMP connection.
@@ -173,7 +225,7 @@ class IRtmpLocalUser {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int publishVideo(agora_refptr<rtc::ILocalVideoTrack> videoTrack) = 0;
+  virtual int publishVideo(agora_refptr<rtc::ILocalVideoTrack> videoTrack, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Stops publishing the local video track to the RTMP connection.
@@ -182,7 +234,7 @@ class IRtmpLocalUser {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int unpublishVideo(agora_refptr<rtc::ILocalVideoTrack> videoTrack) = 0;
+  virtual int unpublishVideo(agora_refptr<rtc::ILocalVideoTrack> videoTrack, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Registers a RTMP user observer object.
@@ -195,7 +247,7 @@ class IRtmpLocalUser {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int registerRtmpUserObserver(IRtmpLocalUserObserver* observer, void(*safeDeleter)(IRtmpLocalUserObserver*) = NULL) = 0;
+  virtual int registerRtmpUserObserver(IRtmpLocalUserObserver* observer, void(*safeDeleter)(IRtmpLocalUserObserver*) = NULL, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Releases the IRtmpLocalUserObserver object previously registered using registerRtmpUserObserver().
@@ -205,7 +257,7 @@ class IRtmpLocalUser {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int unregisteRtmpUserObserver(IRtmpLocalUserObserver* observer) = 0;
+  virtual int unregisterRtmpUserObserver(IRtmpLocalUserObserver* observer) = 0;
     /**
      * Registers an audio frame observer object.
      *
@@ -215,14 +267,14 @@ class IRtmpLocalUser {
      * - 0: Success.
      * - < 0: Failure.
      */
-    virtual int registerAudioFrameObserver(media::base::IAudioFrameObserver* observer) = 0;
+    virtual int registerAudioFrameObserver(media::IAudioPcmFrameSink* observer, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
     /**
      * Unregisters an audio frame observer object.
      *
      * @param observer A pointer to the audio frame observer object: IAudioFrameObserver.
      */
-    virtual void unregisterAudioFrameObserver(media::base::IAudioFrameObserver* observer) = 0;
+    virtual void unregisterAudioFrameObserver(media::IAudioPcmFrameSink* observer) = 0;
 
     /**
      * Registers a video frame observer object.
@@ -233,7 +285,7 @@ class IRtmpLocalUser {
      * - 0: Success.
      * - < 0: Failure.
      */
-    virtual int registerVideoFrameObserver(media::base::IVideoFrameObserver* observer) = 0;
+    virtual int registerVideoFrameObserver(media::base::IVideoFrameObserver* observer, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
     /**
      * Unregisters a video frame observer object.

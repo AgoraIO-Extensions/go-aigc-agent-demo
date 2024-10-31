@@ -7,28 +7,22 @@ import (
 )
 
 type Vad struct {
-	v *agoraservice.AudioVad
+	v *agoraservice.AudioVadV2
 }
 
 func NewVad(startWin, StopWin int) *Vad {
-	cfg := &agoraservice.AudioVadConfig{
-		FftSz:                 1024,
-		AnaWindowSz:           768,
-		HopSz:                 160,
-		FrqInputAvailableFlag: 0,
-		UseCVersionAIModule:   0,
-		VoiceProbThr:          0.7,
-		RmsThr:                -40.0,
-		JointThr:              0.0,
-		Aggressive:            2.0,
-
+	cfg := &agoraservice.AudioVadConfigV2{
+		PreStartRecognizeCount: 16,
 		StartRecognizeCount:    startWin,
 		StopRecognizeCount:     StopWin,
-		PreStartRecognizeCount: 10,
-		ActivePercent:          0.6,
-		InactivePercent:        0.2,
+		ActivePercent:          0.7,
+		InactivePercent:        0.5,
+		StartVoiceProb:         70,
+		StartRms:               -50.0,
+		StopVoiceProb:          70,
+		StopRms:                -50.0,
 	}
-	v := agoraservice.NewAudioVad(cfg)
+	v := agoraservice.NewAudioVadV2(cfg)
 	return &Vad{v: v}
 }
 
@@ -39,20 +33,30 @@ func (v *Vad) Release() {
 type ResultCode int
 
 const (
-	Err         ResultCode = -1
 	Mute        ResultCode = 0
 	MuteToSpeak ResultCode = 1
 	Speaking    ResultCode = 2
 	SpeakToMute ResultCode = 3
 )
 
-func (v *Vad) ProcessPcmFrame(inFrame *agoraservice.PcmAudioFrame) ([][]byte, ResultCode, error) {
-	outFrame, ret := v.v.ProcessPcmFrame(inFrame)
-	if ret == -1 {
-		return nil, Err, fmt.Errorf("code:%d", ret)
+func retToCode(ret agoraservice.VadState) ResultCode {
+	switch ret {
+	case agoraservice.VadStateWaitSpeeking:
+		return Mute
+	case agoraservice.VadStateStartSpeeking:
+		return MuteToSpeak
+	case agoraservice.VadStateIsSpeeking:
+		return Speaking
+	case agoraservice.VadStateStopSpeeking:
+		return SpeakToMute
+	default:
+		return ResultCode(ret)
 	}
+}
 
-	code := ResultCode(ret)
+func (v *Vad) ProcessPcmFrame(inFrame *agoraservice.AudioFrame) ([][]byte, ResultCode, error) {
+	outFrame, ret := v.v.Process(inFrame)
+	code := retToCode(ret)
 	switch code {
 	case Mute, SpeakToMute:
 		return nil, code, nil
@@ -62,7 +66,7 @@ func (v *Vad) ProcessPcmFrame(inFrame *agoraservice.PcmAudioFrame) ([][]byte, Re
 		return nil, code, fmt.Errorf("unexpected code:%d", code)
 	}
 
-	n := len(outFrame.Data)
+	n := len(outFrame.Buffer)
 	if n == 0 || n%320 != 0 {
 		logger.Warn(fmt.Sprintf("if n=len(outFrame.Data), then n=%d, n%%320=%d; it's unexpected, code:%d", n, n%320, code))
 		//return nil, code, fmt.Errorf("if n=len(outFrame.Data), then n=%d, n%%320=%d; it's unexpected, code:%d", n, n%320, code)
@@ -76,7 +80,7 @@ func (v *Vad) ProcessPcmFrame(inFrame *agoraservice.PcmAudioFrame) ([][]byte, Re
 	var chunks [][]byte
 	for i := 0; i < ckNums; i++ {
 		ck := make([]byte, 320)
-		copy(ck, outFrame.Data[i*320:(i+1)*320])
+		copy(ck, outFrame.Buffer[i*320:(i+1)*320])
 		chunks = append(chunks, ck)
 	}
 

@@ -9,6 +9,7 @@
 #pragma once  // NOLINT(build/header_guard)
 
 #include "AgoraBase.h"
+#include <api/cpp/aosl_ares_class.h>
 
 // FIXME(Ender): use this class instead of AudioSendStream as local track
 namespace agora {
@@ -36,13 +37,14 @@ struct AudioSinkWants {
                      channels(0) {}
   AudioSinkWants(int sampleRate, size_t chs) : samplesPerSec(sampleRate),
                                                channels(chs) {}
+  AudioSinkWants(int sampleRate, size_t chs, int trackNum) : samplesPerSec(sampleRate), channels(chs) {}                                            
 };
 
 /**
  * The IAudioTrack class.
  */
 class IAudioTrack : public RefCountInterface {
-public:
+ public:
   /**
    * The position of the audio filter in audio frame.
    */
@@ -85,7 +87,7 @@ public:
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int adjustPlayoutVolume(int volume) = 0;
+  virtual int adjustPlayoutVolume(int volume, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Gets the current playback volume.
@@ -102,11 +104,12 @@ public:
    * By adding an audio filter, you can apply various audio effects to the audio, for example, voice change.
    * @param filter A pointer to the audio filter. See \ref agora::rtc::IAudioFilter "IAudioFilter".
    * @param position The position of the audio filter. See \ref agora::rtc::IAudioTrack::AudioFilterPosition "AudioFilterPosition".
+   * @param extContext The context of current filter. See \ref agora::rtc::ExtensionContext "ExtensionContext".
    * @return
    * - `true`: Success.
    * - `false`: Failure.
    */
-  virtual bool addAudioFilter(agora_refptr<IAudioFilter> filter, AudioFilterPosition position) = 0;
+  virtual bool addAudioFilter(agora_refptr<IAudioFilter> filter, AudioFilterPosition position, ExtensionContext *extContext = NULL, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Removes the audio filter added by callling `addAudioFilter`.
    *
@@ -116,7 +119,7 @@ public:
    * - `true`: Success.
    * - `false`: Failure.
    */
-  virtual bool removeAudioFilter(agora_refptr<IAudioFilter> filter, AudioFilterPosition position) = 0;
+  virtual bool removeAudioFilter(agora_refptr<IAudioFilter> filter, AudioFilterPosition position, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Enable / Disable specified audio filter
@@ -127,7 +130,7 @@ public:
    * - 0: success
    * - <0: failure
    */
-  virtual int enableAudioFilter(const char* id, bool enable, AudioFilterPosition position) {
+  virtual int enableAudioFilter(const char* id, bool enable, AudioFilterPosition position, aosl_ref_t ares = AOSL_REF_INVALID) {
     (void)id;
     (void)enable;
     (void)position;
@@ -144,7 +147,7 @@ public:
    * - 0: success
    * - <0: failure
    */
-  virtual int setFilterProperty(const char* id, const char* key, const char* jsonValue, AudioFilterPosition position) {
+  virtual int setFilterProperty(const char* id, const char* key, const char* jsonValue, AudioFilterPosition position, aosl_ref_t ares = AOSL_REF_INVALID) {
     (void)id;
     (void)key;
     (void)jsonValue;
@@ -192,7 +195,7 @@ public:
    * - `true`: Success.
    * - `false`: Failure.
    */
-  virtual bool addAudioSink(agora_refptr<IAudioSinkBase> sink, const AudioSinkWants& wants) = 0;
+  virtual bool addAudioSink(agora_refptr<IAudioSinkBase> sink, const AudioSinkWants& wants, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Removes an audio sink.
@@ -202,24 +205,24 @@ public:
    * - `true`: Success.
    * - `false`: Failure.
    */
-  virtual bool removeAudioSink(agora_refptr<IAudioSinkBase> sink) = 0;
+  virtual bool removeAudioSink(agora_refptr<IAudioSinkBase> sink, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 };
 
 /**
  * The observer of the local audio track.
  */
 class ILocalAudioTrackObserver {
-public:
+ public:
   virtual ~ILocalAudioTrackObserver() {}
 
   /**
    * Occurs when the state of a local audio track changes.
    *
    * @param state The state of the local audio track.
-   * @param errorCode The error information for a state failure: \ref agora::rtc::LOCAL_AUDIO_STREAM_ERROR "LOCAL_AUDIO_STREAM_ERROR".
+   * @param reasonCode The error information for a state failure: \ref agora::rtc::LOCAL_AUDIO_STREAM_REASON "LOCAL_AUDIO_STREAM_REASON".
    */
   virtual void onLocalAudioTrackStateChanged(LOCAL_AUDIO_STREAM_STATE state,
-                                             LOCAL_AUDIO_STREAM_ERROR errorCode) = 0;
+                                             LOCAL_AUDIO_STREAM_REASON reasonCode) = 0;
 };
 
 /**
@@ -285,12 +288,11 @@ class ILocalAudioTrack : public IAudioTrack {
      * Whether the local audio track is enabled.
      */
     bool enabled;
-    
     /**
      * The volume that ranges from 0 to 255.
      */
-    uint32_t audio_volume; // [0,255]
-    
+    uint32_t audio_volume;  // [0,255]
+
     LocalAudioTrackStats() : source_id(0),
                              buffered_pcm_data_list_size(0),
                              missed_audio_frames(0),
@@ -314,7 +316,7 @@ class ILocalAudioTrack : public IAudioTrack {
    * - `true`: Enable the local audio track.
    * - `false`: Disable the local audio track.
    */
-  virtual void setEnabled(bool enable) = 0;
+  virtual int setEnabled(bool enable, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Gets whether the local audio track is enabled.
@@ -344,7 +346,7 @@ class ILocalAudioTrack : public IAudioTrack {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int adjustPublishVolume(int volume) = 0;
+  virtual int adjustPublishVolume(int volume, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Gets the current volume for publishing.
@@ -367,7 +369,7 @@ class ILocalAudioTrack : public IAudioTrack {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int enableLocalPlayback(bool enable, bool sync = true) = 0;
+  virtual int enableLocalPlayback(bool enable, bool sync = true, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   
   /**
    * Enables in-ear monitoring (for Android and iOS only).
@@ -380,7 +382,7 @@ class ILocalAudioTrack : public IAudioTrack {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int enableEarMonitor(bool enable, int includeAudioFilters) = 0;
+  virtual int enableEarMonitor(bool enable, int includeAudioFilters, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /** Register an local audio track observer
    *
    * @param observer A pointer to the local audio track observer: \ref agora::rtc::ILocalAudioTrackObserver
@@ -389,7 +391,7 @@ class ILocalAudioTrack : public IAudioTrack {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int registerTrackObserver(ILocalAudioTrackObserver* observer) = 0;
+  virtual int registerTrackObserver(ILocalAudioTrackObserver* observer, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /** Releases the local audio track observer
    *
    * @param observer A pointer to the local audio track observer: \ref agora::rtc::ILocalAudioTrackObserver
@@ -400,12 +402,25 @@ class ILocalAudioTrack : public IAudioTrack {
    */
   virtual int unregisterTrackObserver(ILocalAudioTrackObserver* observer) = 0;
 
-  virtual void setMaxBufferedAudioFrameNumber(int number) = 0;
+  /** set Max buffered audio frame number 
+   *
+   * @param number : the buffer number set，unit is 10ms 
+   *
+   */
+  virtual void setMaxBufferedAudioFrameNumber(int number, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
+  /** clear sender buffer
+   *
+   * @return
+   * - >= 0: Frame number in sender buffer.
+   * - < 0: Failure.
+   */
   virtual int ClearSenderBuffer() = 0;
 
+  virtual void setAudioFrameSendDelayMs(int32_t delay_ms) = 0;
+
  protected:
-   ~ILocalAudioTrack() {}
+  ~ILocalAudioTrack() {}
 };
 
 /**
@@ -499,6 +514,14 @@ struct RemoteAudioTrackStats {
    */
   uint32_t packet_max_expired_ms;
   /**
+   * audio neteq jitter peak num in two second
+   */
+  uint32_t burst_peak_num;
+  /**
+   * audio neteq jitter calc by burst opti feature
+   */
+  uint32_t burst_jitter;
+  /**
    * audio base target level
    */
   uint32_t target_level_base_ms;
@@ -531,6 +554,14 @@ struct RemoteAudioTrackStats {
    */
   uint16_t frozen_time_200_ms;
   /**
+   *  The full time of 80 ms frozen in 2 seconds
+   */
+  uint16_t full_frozen_time_80_ms;
+  /**
+   *  The full time of 200 ms frozen in 2 seconds
+   */
+  uint16_t full_frozen_time_200_ms;
+  /**
    *  The estimate delay
    */
   uint32_t delay_estimate_ms;
@@ -538,6 +569,23 @@ struct RemoteAudioTrackStats {
    *  The MOS value
    */
   uint32_t mos_value;
+  /**
+   * If the packet loss concealment (PLC) occurs for N consecutive times, freeze is considered as PLC occurring for M consecutive times.
+   * freeze cnt = (n_plc - n) / m
+   */
+  uint32_t frozen_rate_by_custom_plc_count;
+  /**
+   * The number of audio packet loss concealment
+   */
+  uint32_t plc_count;
+  /**
+   *  Duration of inbandfec
+   */
+  int32_t fec_decode_ms;
+  /**
+   *  The count of 10 ms frozen in 2 seconds
+   */
+  uint16_t frozen_count_10_ms;
   /**
    * The total time (ms) when the remote user neither stops sending the audio
    * stream nor disables the audio module after joining the channel.
@@ -585,6 +633,8 @@ struct RemoteAudioTrackStats {
     downlink_process_time_ms(0),
     packet_expired_loss(0),
     packet_max_expired_ms(0),
+    burst_peak_num(0),
+    burst_jitter(0),
     target_level_base_ms(0),
     target_level_prefered_ms(0),
     accelerate_rate(0),
@@ -593,14 +643,89 @@ struct RemoteAudioTrackStats {
     frozen_time_80_ms(0),
     frozen_count_200_ms(0),
     frozen_time_200_ms(0),
+    full_frozen_time_80_ms(0),
+    full_frozen_time_200_ms(0),
     delay_estimate_ms(0),
     mos_value(0),
+    frozen_rate_by_custom_plc_count(0),
+    plc_count(0),
+    fec_decode_ms(-1),
+    frozen_count_10_ms(0),
     total_active_time(0),
     publish_duration(0),
     e2e_delay_ms(0),
     qoe_quality(0),
     quality_changed_reason(0),
     downlink_effect_type(0) {}
+};
+
+/**
+ * Properties of receive parameters for IAudioEncodedFrameReceiver
+ *
+ */
+struct AudioEncFrameRecvParams {
+  /**
+   * The callback mode of IAudioEncodedFrameReceiver
+   */
+  enum ReceiveMode {
+    /**
+     * IAudioEncodedFrameReceiver callback the down-link audio packet directly
+     */
+    ORIGINAL = 0,
+
+    /**
+     * IAudioEncodedFrameReceiver whill callback the original down-link audio packet while
+     * the codec of down-link packet is same as target_codec.
+     * 
+     * Othewise convert down-link audio packet to new target packet which parameter contain
+     * the combination of (target_codec, target_sample_rate, target_sample_rate).
+     */
+    MATCHED_CODEC = 1,
+
+    /**
+     * IAudioEncodedFrameReceiver whill callback the original down-link audio packet while 
+     * the combination of (codec, sampling rate, channels) of down-link packet is same as
+     * the combination of (target_codec, target_sample_rate, target_sample_rate).
+     * 
+     * Othewise convert down-link audio packet to new target packet which parameter contain
+     * the combination of (target_codec, target_sample_rate, target_sample_rate).
+     */
+    MATCHED_ALL = 2,
+  };
+
+  /**
+   * The trans mode of audio packet
+   */
+  ReceiveMode receive_mode;
+
+  /**
+   * The audio codec of target audio packet, Now we only support AACLC
+   */
+  AUDIO_CODEC_TYPE target_codec;  
+  
+  /**
+   * The sample rate HZ of target audio packet
+   */
+  int32_t target_sample_rate;
+  
+  /**
+   * The channel numbers of target audio packet
+   */
+  int32_t target_num_channels;
+
+
+  AudioEncFrameRecvParams() :
+    receive_mode(ORIGINAL),
+    target_codec(AUDIO_CODEC_AACLC),
+    target_sample_rate(0),
+    target_num_channels(0) {}  
+
+  AudioEncFrameRecvParams(const AudioEncFrameRecvParams& src_params) {
+    receive_mode = src_params.receive_mode;
+    target_codec = src_params.target_codec;
+    target_sample_rate = src_params.target_sample_rate;
+    target_num_channels = src_params.target_num_channels;    
+  }  
 };
 
 /**
@@ -635,7 +760,7 @@ class IRemoteAudioTrack : public IAudioTrack {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int registerMediaPacketReceiver(IMediaPacketReceiver* packetReceiver) = 0;
+  virtual int registerMediaPacketReceiver(IMediaPacketReceiver* packetReceiver, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Releases the `IMediaPacketReceiver` object.
@@ -654,11 +779,14 @@ class IRemoteAudioTrack : public IAudioTrack {
    * audio packet.
    *
    * @param packetReceiver The pointer to the `IAudioEncodedFrameReceiver` object.
+   * @param recvParams The parameter of receive encoded frame
    * @return
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int registerAudioEncodedFrameReceiver(IAudioEncodedFrameReceiver* packetReceiver) = 0;
+  virtual int registerAudioEncodedFrameReceiver(IAudioEncodedFrameReceiver* packetReceiver,
+                                                const AudioEncFrameRecvParams& recvParams,
+                                                aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Releases the `IAudioEncodedFrameReceiver` object.
@@ -681,7 +809,74 @@ class IRemoteAudioTrack : public IAudioTrack {
    - 0: Success.
    - < 0: Failure.
    */
-  virtual int setRemoteVoicePosition(float pan, float gain) = 0;
+  virtual int setRemoteVoicePosition(float pan, float gain, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
+
+  /** Sets the volume of each audio decoded channel
+
+   @param decoded_index The channel index of the remote user. The value ranges from 0 to 100:
+   @param volume The channel index of the remote user. The value ranges from 0 to 100.
+   - 0: mute the channel.
+   - 100: keep the origin volume of the channel.
+
+   @return
+   - 0: Success.
+   - < 0: Failure.
+   */
+  virtual int adjustDecodedAudioVolume(int decoded_index, int volume, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
+
+  /** mute remote stream from timestamp
+   
+   @note
+   - unmuteRemoteFromTimestamp should be called after muteRemoteFromTimestamp, othewise this stream will be muted all time
+
+   @param timestamp The rtp timestamp of start mute
+   @return
+   - 0: Success.
+   - < 0: Failure.
+   */
+  virtual int muteRemoteFromTimestamp(uint32_t timestamp) = 0;
+  
+  /** unmute remote stream from timestamp
+   
+   @note
+   - unmuteRemoteFromTimestamp should be called after muteRemoteFromTimestamp, othewise this stream will be muted all time
+
+   @param timestamp The rtp timestamp of start unmute
+   @return
+   - 0: Success.
+   - < 0: Failure.
+   */
+  virtual int unmuteRemoteFromTimestamp(uint32_t timestamp) = 0;
+  
+  /** set percentage of audio acceleration during poor network
+   
+   @note
+   - The relationship between this percentage and the degree of audio acceleration is non-linear and varies with different audio material.
+
+   @param percentage The percentage of audio acceleration. The value ranges from 0 to 100. The higher the
+   * percentage, the faster the acceleration. The default value is 100 (no change to the acceleration):
+   - 0: disable audio acceleration.
+   - > 0: enable audio acceleration.
+   @return
+   - 0: Success.
+   - < 0: Failure.
+   */
+  virtual int adjustAudioAcceleration(int percentage, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
+
+  /** set percentage of audio deceleration during poor network
+   
+   @note
+   - The relationship between this percentage and the degree of audio deceleration is non-linear and varies with different audio material.
+
+   @param percentage The percentage of audio deceleration. The value ranges from 0 to 100. The higher the
+   * percentage, the faster the deceleration. The default value is 100 (no change to the deceleration):
+   - 0: disable audio deceleration.
+   - > 0: enable audio deceleration.
+   @return
+   - 0: Success.
+   - < 0: Failure.
+   */
+  virtual int adjustAudioDeceleration(int percentage, aosl_ref_t ares = AOSL_REF_INVALID) = 0;  
 
   /** enable spatial audio
    
@@ -692,7 +887,7 @@ class IRemoteAudioTrack : public IAudioTrack {
    - 0: Success.
    - < 0: Failure.
    */
-  virtual int enableSpatialAudio(bool enabled) = 0;
+  virtual int enableSpatialAudio(bool enabled, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /** Sets remote user parameters for spatial audio
    
@@ -702,7 +897,7 @@ class IRemoteAudioTrack : public IAudioTrack {
    - 0: Success.
    - < 0: Failure.
    */
-  virtual int setRemoteUserSpatialAudioParams(const agora::SpatialAudioParams& params) = 0;
+  virtual int setRemoteUserSpatialAudioParams(const agora::SpatialAudioParams& params, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 };
 
 }  // namespace rtc

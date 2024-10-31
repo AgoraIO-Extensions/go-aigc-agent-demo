@@ -8,6 +8,7 @@
 
 #include "AgoraBase.h"
 #include "AgoraRefPtr.h"
+#include <api/cpp/aosl_ares_class.h>
 
 namespace agora {
 namespace rtc {
@@ -31,6 +32,10 @@ class ICameraCapturer : public RefCountInterface {
      * The camera source is the front camera.
      */
     CAMERA_FRONT,
+    /**
+     * The camera source is the extra camera.
+     */
+    CAMERA_EXTRA,
   };
 
   /**
@@ -75,13 +80,16 @@ class ICameraCapturer : public RefCountInterface {
      * @param deviceUniqueIdLength The length of the device ID.
      * @param productUniqueIdUTF8 The unique ID of the product.
      * @param productUniqueIdLength The length of the product ID.
+     * @param deviceTypeUTF8 The camera type of the device.
+     * @param deviceTypeLength The length of the camera type.
      * @return
      * The name of the device in the UTF8 format: Success.
      */
     virtual int32_t GetDeviceName(uint32_t deviceNumber, char* deviceNameUTF8,
                                   uint32_t deviceNameLength, char* deviceUniqueIdUTF8,
                                   uint32_t deviceUniqueIdLength, char* productUniqueIdUTF8 = 0,
-                                  uint32_t productUniqueIdLength = 0) = 0;
+                                  uint32_t productUniqueIdLength = 0,
+                                  char* deviceTypeUTF8 = 0, uint32_t deviceTypeLength = 0) = 0;
 
     /**
      * Sets the capability number for a specified device.
@@ -117,7 +125,7 @@ class ICameraCapturer : public RefCountInterface {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int setCameraSource(CAMERA_SOURCE source) = 0;
+  virtual int setCameraSource(CAMERA_SOURCE source, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Gets the camera source.
    *
@@ -133,7 +141,7 @@ class ICameraCapturer : public RefCountInterface {
    * @note
    * This method applies to Android and iOS only.
    */
-  virtual void switchCamera() = 0;
+  virtual int switchCamera(aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Returns whether zooming is supported by the current device.
    * @note
@@ -157,7 +165,7 @@ class ICameraCapturer : public RefCountInterface {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int32_t setCameraZoom(float zoomValue) = 0;
+  virtual int32_t setCameraZoom(float zoomValue, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Gets the max zooming factor of the device.
    *
@@ -188,7 +196,7 @@ class ICameraCapturer : public RefCountInterface {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int32_t setCameraFocus(float x, float y) = 0;
+  virtual int32_t setCameraFocus(float x, float y, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Returns whether auto face focus is supported by the current device.
    * @note
@@ -210,7 +218,7 @@ class ICameraCapturer : public RefCountInterface {
     * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int32_t setCameraAutoFaceFocus(bool enable) = 0;
+  virtual int32_t setCameraAutoFaceFocus(bool enable, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Enables or disables auto face detection.
    * @note
@@ -221,7 +229,7 @@ class ICameraCapturer : public RefCountInterface {
     * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int32_t enableFaceDetection(bool enable) = 0;
+  virtual int32_t enableFaceDetection(bool enable, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Checks whether the camera face detect is supported.
@@ -270,7 +278,7 @@ class ICameraCapturer : public RefCountInterface {
    * - 0: Success
    * - < 0: Failure
    */
-  virtual int setCameraTorchOn(bool isOn) = 0;
+  virtual int setCameraTorchOn(bool on, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /** Checks whether the camera exposure function is supported.
    *
@@ -300,9 +308,47 @@ class ICameraCapturer : public RefCountInterface {
    *     <li>< 0: Failure.</li>
    * </ul>
    */
-  virtual int setCameraExposurePosition(float positionXinView, float positionYinView) = 0;
+  virtual int setCameraExposurePosition(float positionXinView, float positionYinView, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   
+  /**
+   * Returns whether exposure value adjusting is supported by the current device.
+   * Exposure compensation is in auto exposure mode.
+   * @since v4.2.2.
+   * @note
+   * This method only supports Android and iOS.
+   * This interface returns valid values only after the device is initialized.
+   *
+   * @return
+   * - true: exposure value adjusting is supported.
+   * - false: exposure value adjusting is not supported or device is not initialized.
+   */
+  virtual bool isCameraExposureSupported() = 0;
+
+  /**
+   * Sets the camera exposure ratio.
+   *
+   * @since v4.2.2.
+   * @param value Absolute EV bias will set to camera.
+   *
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual int setCameraExposureFactor(float value, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
+
 #if (defined(__APPLE__) && TARGET_OS_IOS)
+  /**
+   * Enables or disables the AVCaptureMultiCamSession.
+   *
+   * @param enable Determines whether to use the AVCaptureMultiCamSession:
+   * - true: Enable the AVCaptureMultiCamSession.
+   * - false: Disable the AVCaptureMultiCamSession.
+   *
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual bool enableMultiCamera(bool enable, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Checks whether the camera auto exposure function is supported.
    *
@@ -326,7 +372,14 @@ class ICameraCapturer : public RefCountInterface {
    *     <li>< 0: Failure.</li>
    * </ul>
    */
-  virtual int setCameraAutoExposureFaceModeEnabled(bool enabled) = 0;
+  virtual int setCameraAutoExposureFaceModeEnabled(bool enabled, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
+
+  /**
+   * set camera stabilization mode.If open stabilization mode, fov will be smaller and capture latency will be longer.
+   *
+   * @param mode specifies the camera stabilization mode.
+   */
+  virtual int setCameraStabilizationMode(CAMERA_STABILIZATION_MODE mode) = 0;
 #endif
   
 #elif defined(_WIN32) || (defined(__linux__) && !defined(__ANDROID__)) || \
@@ -368,11 +421,32 @@ class ICameraCapturer : public RefCountInterface {
   virtual int initWithDeviceName(const char* deviceName) = 0;
 #endif
 
+#if defined(__APPLE__)
+  /**
+   * Checks whether the center stage is supported. Use this method after starting the camera.
+   *
+   * @return
+   * - true: The center stage is supported.
+   * - false: The center stage is not supported.
+   */
+  virtual bool isCenterStageSupported() = 0;
+  
+  /** Enables the camera Center Stage.
+   * @param enabled enable Center Stage:
+   * - true: Enable Center Stage.
+   * - false: Disable Center Stage.
+   * @return
+   * - 0: Success.
+   * - < 0: Failure.
+   */
+  virtual int enableCenterStage(bool enabled) = 0;
+#endif
+
   /**
    * Set the device orientation of the capture device
    * @param VIDEO_ORIENTATION orientaion of the device 0(by default), 90, 180, 270
    */
-  virtual void setDeviceOrientation(VIDEO_ORIENTATION orientation) = 0;
+  virtual int setDeviceOrientation(VIDEO_ORIENTATION orientation, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Sets the format of the video captured by the camera.
@@ -381,7 +455,7 @@ class ICameraCapturer : public RefCountInterface {
    *
    * @param capture_format The reference to the video format: VideoFormat.
    */
-  virtual void setCaptureFormat(const VideoFormat& capture_format) = 0;
+  virtual int setCaptureFormat(const VideoFormat& capture_format, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Gets the format of the video captured by the camera.
    * @return
@@ -393,7 +467,7 @@ class ICameraCapturer : public RefCountInterface {
    *
    * @param observer Instance of the capture observer.
    */
-  virtual int registerCameraObserver(ICameraCaptureObserver* observer) = 0;
+  virtual int registerCameraObserver(ICameraCaptureObserver* observer, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Unregisters the camera observer.
    *
@@ -445,14 +519,14 @@ class ICameraCaptureObserver {
    *
    * @param imageWidth The width (px) of the local video.
    * @param imageHeight The height (px) of the local video.
-   * @param vecRectangle The position and size of the human face on the local video:
+   * @param vecRectangle A Rectangle array of length 'numFaces', which represents the position and size of the human face on the local video：
    * - `x`: The x coordinate (px) of the human face in the local video. Taking the top left corner of the captured video as the origin,
    * the x coordinate represents the relative lateral displacement of the top left corner of the human face to the origin.
    * - `y`: The y coordinate (px) of the human face in the local video. Taking the top left corner of the captured video as the origin,
    * the y coordinate represents the relative longitudinal displacement of the top left corner of the human face to the origin.
    * - `width`: The width (px) of the human face in the captured video.
    * - `height`: The height (px) of the human face in the captured video.
-   * @param vecDistance The distance (cm) between the human face and the screen.
+   * @param vecDistance An int array of length 'numFaces', which represents distance (cm) between the human face and the screen.
    * @param numFaces The number of faces detected. If the value is 0, it means that no human face is detected.
    */
   virtual void onFacePositionChanged(

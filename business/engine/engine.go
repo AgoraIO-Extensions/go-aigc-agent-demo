@@ -3,7 +3,6 @@ package engine
 import (
 	"fmt"
 	"go-aigc-agent-demo/business/aigcCtx/sentence"
-	"go-aigc-agent-demo/business/exit"
 	"go-aigc-agent-demo/business/filter"
 	"go-aigc-agent-demo/business/llm"
 	"go-aigc-agent-demo/business/rtc"
@@ -11,12 +10,17 @@ import (
 	"go-aigc-agent-demo/business/stt"
 	"go-aigc-agent-demo/business/tts"
 	"go-aigc-agent-demo/config"
+	"go-aigc-agent-demo/pkg/agora-go-sdk/go_wrapper/agoraservice"
 	"go-aigc-agent-demo/pkg/logger"
+	"log/slog"
+	"os"
 	"strconv"
+	"time"
 )
 
 type Engine struct {
-	exitWrapper *exit.ExitManager
+	StartTime   int64
+	MaxLifeTime int64 // Maximum process uptime.
 	filter      *filter.Filter
 	rtc         *rtc.RTC
 	sttFactory  *stt.Factory
@@ -26,7 +30,10 @@ type Engine struct {
 
 func InitEngine() (*Engine, error) {
 	cfg := config.Inst()
-	e := &Engine{}
+	e := &Engine{
+		StartTime:   cfg.StartTime,
+		MaxLifeTime: cfg.MaxLifeTime,
+	}
 
 	var err error
 
@@ -56,9 +63,6 @@ func InitEngine() (*Engine, error) {
 	}
 	logger.Info("TTS initialization succeeded")
 
-	// init [exit]
-	e.exitWrapper = exit.NewExitManager(cfg.StartTime, cfg.MaxLifeTime)
-
 	// init「llm」
 	e.llm, err = llm.NewLLM(cfg.LLM.ModelSelect, cfg.LLM.Prompt.Generate(), &cfg.LLM)
 	if err != nil {
@@ -70,10 +74,10 @@ func InitEngine() (*Engine, error) {
 
 func (e *Engine) Run() error {
 	// asynchronously: Exit automatically after reaching the maximum lifetime
-	e.exitWrapper.HandlerMaxLifeTime()
+	e.HandlerMaxLifeTime()
 
 	// Register user leave event handler
-	e.rtc.SetOnUserLeft(e.exitWrapper.OnUserLeft)
+	e.rtc.SetOnUserLeft(e.OnUserLeft)
 
 	// Register handler for audio received from RTC
 	e.rtc.SetOnReceiveAudio(e.filter.OnRcvRTCAudio)
@@ -99,4 +103,32 @@ func (e *Engine) Run() error {
 		return fmt.Errorf("[rtc.Connect]%v", err)
 	}
 	return nil
+}
+
+// OnUserLeft Handle user departure events (currently supports only single user scenarios)
+func (e *Engine) OnUserLeft(conn *agoraservice.RtcConnection, uid string, reason int) {
+	logger.Info("[exit] User has left; the process is about to exit.", slog.String("uid", uid))
+	e.Release()
+	os.Exit(0)
+}
+
+func (e *Engine) HandlerMaxLifeTime() {
+	go func() {
+		leftLifeTime := e.MaxLifeTime - (time.Now().Unix() - e.StartTime)
+		if leftLifeTime <= 0 {
+			logger.Info("Reached maximum uptime; exiting soon...")
+			os.Exit(1)
+		}
+		logger.Info(fmt.Sprintf("Remaining uptime: %d", leftLifeTime))
+		<-time.After(time.Second * time.Duration(leftLifeTime))
+		logger.Info("Reached maximum uptime; exiting soon...")
+		e.Release()
+		os.Exit(0)
+	}()
+}
+
+func (e *Engine) Release() {
+	e.rtc.Release()
+	logger.Info("[release] finish release")
+
 }

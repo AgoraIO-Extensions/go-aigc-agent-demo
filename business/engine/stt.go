@@ -230,28 +230,31 @@ func (e *Engine) groupText(sentenceTextQueue chan *sentenceText, sentenceTextGro
 		case <-sText.sendFailed:
 			logger.ErrorContext(ctx, "[stt] sText.sendFailed")
 			continue
-		case <-sText.ignore:
-			logger.ErrorContext(ctx, "[stt] sText.ignore")
-			continue
 		case <-sText.finishSend:
 			break
 		}
 
-		/* concat stt recognized texts that belongs to a group */
+		/* wait for fullText */
+		var fullText string
 		select {
+		case <-sText.ignore:
+			logger.InfoContext(ctx, "[stt] sText.ignore")
+			continue
 		case <-time.After(time.Second * 5):
 			logger.ErrorContext(ctx, "[stt] Timeout waiting for STT to retrieve recognition result: 5 seconds.")
 			continue
-		case fullText := <-sText.fullText:
+		case fullText = <-sText.fullText:
 			if fullText == "" {
 				continue
 			}
-			concatenatedText = concatenatedText + fullText
-			if err := rtm.SendSttMsg(ctx, rtm.FlagFin, concatenatedText); err != nil {
-				logger.ErrorContext(ctx, "[rtm.SendSttMsg]", zap.Error(err), zap.String("concatenatedText", concatenatedText))
-			}
-			logger.InfoContext(ctx, "[stt] Text after concatenation", slog.String("text", concatenatedText))
 		}
+
+		/* concat stt recognized texts that belongs to a group */
+		concatenatedText = concatenatedText + fullText
+		if err := rtm.SendSttMsg(ctx, rtm.FlagFin, concatenatedText); err != nil {
+			logger.ErrorContext(ctx, "[rtm.SendSttMsg]", zap.Error(err), zap.String("concatenatedText", concatenatedText))
+		}
+		logger.InfoContext(ctx, "[stt] Text after concatenation", slog.String("text", concatenatedText))
 
 		/* check if interrupted */
 		if errors.Is(ctx.Err(), context.Canceled) {

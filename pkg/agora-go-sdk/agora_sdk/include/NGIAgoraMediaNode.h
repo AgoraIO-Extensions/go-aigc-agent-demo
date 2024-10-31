@@ -4,6 +4,7 @@
 #include "IAgoraLog.h"
 #include "NGIAgoraVideoFrame.h"
 #include "AgoraExtensionVersion.h"
+#include <api/aosl_ref.h>
 
 #ifndef OPTIONAL_PROCESSRESULT_SPECIFIER
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1800)
@@ -137,6 +138,32 @@ class IAudioFilter : public IAudioFilterBase {
 
  protected:
   ~IAudioFilter() {}
+};
+
+class IAudioFilterV2 : public IAudioFilter {
+public:
+    class Control : public RefCountInterface {
+     public:
+      /**
+       * @brief Post an event and notify the end users.
+       * @param key '\0' ended string that describes the key of the event
+       * @param value '\0' ended string that describes the value of the event
+       */
+      virtual int postEvent(const char* key, const char* value) = 0;
+      /**
+       * @brief print log to the SDK.
+       * @param level Log level @ref agora::commons::LOG_LEVEL
+       * @param format log formatter string
+       * @param ... variadic arguments
+       */
+      virtual void printLog(commons::LOG_LEVEL level, const char* format, ...) = 0;
+    };
+public:
+    /**
+       * @brief AgoraSDK set IAudioFilterV2::Control to filter 
+       * @param control IAudioFilterV2::Control
+       */
+    virtual void setExtensionControl(agora::agora_refptr<IAudioFilterV2::Control> control) = 0;
 };
 
 /**
@@ -299,16 +326,14 @@ class IExtensionVideoFilter : public IVideoFilter {
   };
 
   /**
-   * @brief SDK will invoke this API first to get the filter's requested process mode @ref ProcessMode and threading model
+   * @brief SDK will invoke this API first to get the filter's requested process mode @ref ProcessMode
    * @param mode [out] filter assign its desired the process mode @ref ProcessMode
-   * @param independent_thread [out] filter assign its desired threading model. When this boolean is set "true", an
-   * indepent thread will be assigned to the current filter and all invocations from SDK afterwards are ensured to
-   * happen on that fixed thread. If this boolean flag is set "false", the filter will re-use the  thread of the SDK's
-   * data path. All invocations from SDK afterwards are also ensured to be on the same thread, however that thread is shared.
+   * @param independent_thread deprecated. SDK will ignore this parameter.
    * @note If the filter implementation is not thread sensitive, we recommend to set the boolean to "false" to reduce thread context
    * switching.
    */
   virtual void getProcessMode(ProcessMode& mode, bool& independent_thread) = 0;
+
   /**
    * @brief SDK will invoke this API before feeding video frame data to the filter. Filter can perform its initialization/preparation job
    * in this step.
@@ -363,6 +388,64 @@ class IExtensionVideoFilter : public IVideoFilter {
       const media::base::VideoFrame& capturedFrame,
       media::base::VideoFrame& adaptedFrame) {
     return -ERR_NOT_SUPPORTED;
+  }
+};
+
+class ILipSyncFilter : public RefCountInterface {
+ public:
+  enum ProcessResult {
+    kSuccess, // Video frame data is successfully processed
+    kBypass,  // Video frame data should bypass the current filter and flow to its successsors
+    kDrop, // Video Frame data should be discarded
+  };
+  
+  class Control : public RefCountInterface {
+   public:
+    /**
+     * @brief Post an event and notify the end users.
+     * @param key '\0' ended string that describes the key of the event
+     * @param value '\0' ended string that describes the value of the event
+     */
+    virtual int postEvent(const char* key, const char* value) = 0;
+    /**
+     * @brief print log to the SDK.
+     * @param level Log level @ref agora::commons::LOG_LEVEL
+     * @param format log formatter string
+     * @param ... variadic arguments
+     */
+    virtual void printLog(commons::LOG_LEVEL level, const char* format, ...) = 0;
+    /**
+     * @brief Ask SDK to disable the current filter if a fatal error is detected
+     * @param error error code
+     * @param msg error message
+     */
+    virtual void disableMe(int error, const char* msg) = 0;
+    /**
+     * @brief report counter to the SDK.
+     * @param counter_id counter id
+     * @param value counter value
+     */
+    virtual void ReportCounter(int32_t counter_id, int32_t value) = 0;
+    /**
+     * @brief get stats to the SDK.
+     * @param counter_id counter id
+     */
+    virtual int GetStats(int32_t counter_id) = 0;
+  };
+  
+  virtual int start(agora::agora_refptr<Control> control) = 0;
+  
+  virtual int stop() = 0;
+  
+  virtual int setProperty(const char* key, const void* buf, size_t buf_size) { return -1; }
+    /**
+         * Convert the audio frame to face info.
+         * @param inAudioFrame The reference to the audio frame that you want to convert.
+       * @param outFaceInfo The reference to the face info.
+       * @return see @ref ProcessResult
+    */
+  virtual ProcessResult convertAudioFrameToFaceInfo(const agora::media::base::AudioPcmFrame& inAudioFrame, char* outFaceInfo) {
+    return kBypass;
   }
 };
 
@@ -435,10 +518,10 @@ class IVideoSinkBase : public RefCountInterface {
 class IMediaExtensionObserver : public RefCountInterface {
 public:
   virtual ~IMediaExtensionObserver() {}
-  virtual void onEvent(const char* provider, const char* extension, const char* key, const char* json_value) {}
-  virtual void onExtensionStopped(const char* provider, const char* extension) {}
-  virtual void onExtensionStarted(const char* provider, const char* extension) {}
-  virtual void onExtensionError(const char* provider, const char* extension, int error, const char* message) {}
+  virtual void onEventWithContext(const ExtensionContext& context, const char* key, const char* json_value) {}
+  virtual void onExtensionStoppedWithContext(const ExtensionContext& context) {}
+  virtual void onExtensionStartedWithContext(const ExtensionContext& context) {}
+  virtual void onExtensionErrorWithContext(const ExtensionContext& context, int error, const char* message) {}
 };
 
 /**
@@ -462,7 +545,7 @@ class IAudioPcmDataSender : public RefCountInterface {
    * - < 0: Failure.
    */
   virtual int sendAudioPcmData(
-      const void* audio_data, uint32_t capture_timestamp,
+      const void* audio_data, uint32_t capture_timestamp, int64_t presentation_ms,
       const size_t samples_per_channel,  // for 10ms Data, number_of_samples * 100 = sample_rate
       const agora::rtc::BYTES_PER_SAMPLE bytes_per_sample,     // 2
       const size_t number_of_channels,
@@ -577,7 +660,7 @@ class IMediaPacketSender : public RefCountInterface {
    * - `false`: Failure.
    */
   virtual int sendMediaPacket(const uint8_t *packet, size_t length,
-                              const media::base::PacketOptions &options) = 0;
+                              const media::base::PacketOptions &options, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
  protected:
   ~IMediaPacketSender() {}
 };
@@ -605,7 +688,7 @@ class IMediaControlPacketSender {
    */
   virtual int sendPeerMediaControlPacket(media::base::user_id_t userId,
                                          const uint8_t *packet,
-                                         size_t length) = 0;
+                                         size_t length, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   /**
    * Sends the media transport control packet to all users.
@@ -617,7 +700,7 @@ class IMediaControlPacketSender {
    * - `true`: Success.
    * - `false`: Failure.
    */
-  virtual int sendBroadcastMediaControlPacket(const uint8_t *packet, size_t length) = 0;
+  virtual int sendBroadcastMediaControlPacket(const uint8_t *packet, size_t length, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 
   virtual ~IMediaControlPacketSender() {}
 };
@@ -780,7 +863,7 @@ class IVideoRenderer : public IVideoSinkBase {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int setRenderMode(media::base::RENDER_MODE_TYPE renderMode) = 0;
+  virtual int setRenderMode(media::base::RENDER_MODE_TYPE renderMode, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Sets the render mode of the view.
    * @param view the view to set render mode.
@@ -789,7 +872,7 @@ class IVideoRenderer : public IVideoSinkBase {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int setRenderMode(void* view, media::base::RENDER_MODE_TYPE renderMode) = 0;
+  virtual int setRenderMode(void* view, media::base::RENDER_MODE_TYPE renderMode, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Sets whether to mirror the video.
    * @param mirror Whether to mirror the video:
@@ -799,7 +882,7 @@ class IVideoRenderer : public IVideoSinkBase {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int setMirror(bool mirror) = 0;
+  virtual int setMirror(bool mirror, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Sets whether to mirror the video.
    * @param view the view to set mirror mode.
@@ -810,7 +893,7 @@ class IVideoRenderer : public IVideoSinkBase {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int setMirror(void* view, bool mirror) = 0;
+  virtual int setMirror(void* view, bool mirror, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Sets the video display window.
    * @param view The pointer to the video display window.
@@ -818,7 +901,7 @@ class IVideoRenderer : public IVideoSinkBase {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int setView(void* view) = 0;
+  virtual int setView(void* view, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Sets the video display window.
    * @param view The pointer to the video display window.
@@ -827,14 +910,14 @@ class IVideoRenderer : public IVideoSinkBase {
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int addView(void* view, const Rectangle& cropArea) = 0;
+  virtual int addView(void* view, const Rectangle& cropArea, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * Stops rendering the video view on the window.
    * @return
    * - 0: Success.
    * - < 0: Failure.
    */
-  virtual int unsetView() = 0;
+  virtual int unsetView(aosl_ref_t ares = AOSL_REF_INVALID) = 0;
   /**
    * remove rendering the video view on the window.
    * @return
@@ -853,8 +936,8 @@ class IVideoTrack;
 class IVideoFrameTransceiver : public RefCountInterface {
  public:
   virtual int getTranscodingDelayMs() = 0;
-  virtual int addVideoTrack(agora_refptr<IVideoTrack> track) = 0;
-  virtual int removeVideoTrack(agora_refptr<IVideoTrack> track) = 0;
+  virtual int addVideoTrack(agora_refptr<IVideoTrack> track, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
+  virtual int removeVideoTrack(agora_refptr<IVideoTrack> track, aosl_ref_t ares = AOSL_REF_INVALID) = 0;
 };
 
 }

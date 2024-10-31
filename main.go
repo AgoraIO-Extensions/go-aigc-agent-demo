@@ -59,8 +59,8 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
-
 	logger.Info(fmt.Sprintf("Received exit signal %v, exiting soon", s))
+	em.Release()
 	return
 }
 
