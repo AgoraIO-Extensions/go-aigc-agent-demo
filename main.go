@@ -11,6 +11,7 @@ import (
 	"go-aigc-agent-demo/pkg/alibaba/speech"
 	chat_gpt "go-aigc-agent-demo/pkg/azureopenai/chat-gpt"
 	"go-aigc-agent-demo/pkg/logger"
+	"go-aigc-agent-demo/pkg/monitor"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -60,7 +61,7 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sig
 	logger.Info(fmt.Sprintf("Received exit signal %v, exiting soon", s))
-	em.Release()
+	monitor.LogGoroutines()
 	return
 }
 

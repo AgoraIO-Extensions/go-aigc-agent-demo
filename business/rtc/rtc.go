@@ -98,10 +98,10 @@ func (r *RTC) Connect() error {
 	return nil
 }
 
-func (r *RTC) Release() {
-	r.track.Release()
-	r.pcmSender.Release()
-	r.conn.Release()
-	r.mediaNodeFactory.Release()
-	agoraservice.Release()
-}
+//func (r *RTC) Release() {
+//	r.track.Release()
+//	r.pcmSender.Release()
+//	r.conn.Release()
+//	r.mediaNodeFactory.Release()
+//	agoraservice.Release()
+//}

@@ -12,6 +12,7 @@ import (
 	"go-aigc-agent-demo/config"
 	"go-aigc-agent-demo/pkg/agora-go-sdk/go_wrapper/agoraservice"
 	"go-aigc-agent-demo/pkg/logger"
+	"go-aigc-agent-demo/pkg/monitor"
 	"log/slog"
 	"os"
 	"strconv"
@@ -108,7 +109,7 @@ func (e *Engine) Run() error {
 // OnUserLeft Handle user departure events (currently supports only single user scenarios)
 func (e *Engine) OnUserLeft(conn *agoraservice.RtcConnection, uid string, reason int) {
 	logger.Info("[exit] User has left; the process is about to exit.", slog.String("uid", uid))
-	e.Release()
+	monitor.LogGoroutines()
 	os.Exit(0)
 }
 
@@ -122,13 +123,7 @@ func (e *Engine) HandlerMaxLifeTime() {
 		logger.Info(fmt.Sprintf("Remaining uptime: %d", leftLifeTime))
 		<-time.After(time.Second * time.Duration(leftLifeTime))
 		logger.Info("Reached maximum uptime; exiting soon...")
-		e.Release()
+		monitor.LogGoroutines()
 		os.Exit(0)
 	}()
-}
-
-func (e *Engine) Release() {
-	e.rtc.Release()
-	logger.Info("[release] finish release")
-
 }

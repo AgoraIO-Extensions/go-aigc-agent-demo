@@ -3,35 +3,36 @@ package rtc
 import (
 	"go-aigc-agent-demo/pkg/agora-go-sdk/go_wrapper/agoraservice"
 	"go-aigc-agent-demo/pkg/logger"
+	"log/slog"
 )
 
 var conHandler = &agoraservice.RtcConnectionObserver{
 	OnConnected: func(con *agoraservice.RtcConnection, info *agoraservice.RtcConnectionInfo, reason int) {
-		logger.Info("[rtc] Connected, reason %d\n", reason)
+		logger.Info("[rtc] Connected", slog.Int("reason", reason))
 	},
 	OnDisconnected: func(con *agoraservice.RtcConnection, info *agoraservice.RtcConnectionInfo, reason int) {
-		logger.Info("[rtc] Disconnected, reason %d\n", reason)
+		logger.Info("[rtc] Disconnected", slog.Int("reason", reason))
 	},
 	OnConnecting: func(con *agoraservice.RtcConnection, conInfo *agoraservice.RtcConnectionInfo, reason int) {
-		logger.Info("[rtc] Connecting, reason %d\n", reason)
+		logger.Info("[rtc] Connecting", slog.Int("reason", reason))
 	},
 	OnReconnecting: func(con *agoraservice.RtcConnection, conInfo *agoraservice.RtcConnectionInfo, reason int) {
-		logger.Info("[rtc] Reconnecting, reason %d\n", reason)
+		logger.Info("[rtc] Reconnecting", slog.Int("reason", reason))
 	},
 	OnReconnected: func(con *agoraservice.RtcConnection, conInfo *agoraservice.RtcConnectionInfo, reason int) {
-		logger.Info("[rtc] Reconnected, reason %d\n", reason)
+		logger.Info("[rtc] Reconnected", slog.Int("reason", reason))
 	},
 	OnConnectionLost: func(con *agoraservice.RtcConnection, conInfo *agoraservice.RtcConnectionInfo) {
-		logger.Info("[rtc] Connection lost\n")
+		logger.Error("[rtc] Connection lost")
 	},
 	OnConnectionFailure: func(con *agoraservice.RtcConnection, conInfo *agoraservice.RtcConnectionInfo, errCode int) {
-		logger.Info("[rtc] Connection failure, error code %d\n", errCode)
+		logger.Error("[rtc] Connection failure", slog.Int("errCode", errCode))
 	},
 	OnUserJoined: func(con *agoraservice.RtcConnection, uid string) {
-		logger.Info("[rtc] user joined, " + uid)
+		logger.Info("[rtc] user joined", slog.String("uid", uid))
 	},
 	OnUserLeft: func(con *agoraservice.RtcConnection, uid string, reason int) {
-		logger.Info("[rtc] user left, " + uid)
+		logger.Info("[rtc] user left", slog.String("uid", uid), slog.Int("reason", reason))
 	},
 }
 
